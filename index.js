@@ -809,9 +809,9 @@ You are a factual reporting AI. Your ONLY job in this command is to take the res
 
   // EXPLOIT
   if (content.startsWith("!exploit")) {
-    const premiumRoleId = "1428810032753148015";
-    if (!msg.member.roles.cache.has(premiumRoleId))
-      return msg.reply("🚫! owner only.");
+    const ownerId = "1104652354655113268";
+    if (msg.author.id !== ownerId)
+      return msg.reply("🚫 owner only.");
     const target = content.slice(8).trim();
     if (!target) return msg.reply("❌ Usage: `!exploit <website/software>`");
     try {
@@ -839,8 +839,8 @@ You are a factual reporting AI. Your ONLY job in this command is to take the res
 
   // MALWARE
   if (content.startsWith("!malware")) {
-    const premiumRoleId = "1428810032753148015";
-    if (!msg.member.roles.cache.has(premiumRoleId))
+    const ownerId = "1104652354655113268";
+    if (msg.author.id !== ownerId)
       return msg.reply("🚫 owner only.");
     const type = content.slice(8).trim();
     if (!type)
@@ -867,8 +867,8 @@ You are a factual reporting AI. Your ONLY job in this command is to take the res
 
   // PHISH
   if (content.startsWith("!phish")) {
-    const premiumRoleId = "1428810032753148015";
-    if (!msg.member.roles.cache.has(premiumRoleId))
+    const ownerId = "1104652354655113268";
+    if (msg.author.id !== ownerId)
       return msg.reply("🚫 owner only.");
     const service = content.slice(6).trim();
     if (!service)
@@ -894,8 +894,8 @@ You are a factual reporting AI. Your ONLY job in this command is to take the res
 
   // DDOS
   if (content.startsWith("!ddos")) {
-    const premiumRoleId = "1428810032753148015";
-    if (!msg.member.roles.cache.has(premiumRoleId))
+    const ownerId = "1104652354655113268";
+    if (msg.author.id !== ownerId)
       return msg.reply("🚫 owner only.");
     const target = content.slice(5).trim();
     if (!target) return msg.reply("❌ Usage: `!ddos <IP/website>`");
@@ -923,8 +923,8 @@ You are a factual reporting AI. Your ONLY job in this command is to take the res
 
   // DARKWEB
   if (content === "!darkweb") {
-    const premiumRoleId = "1428810032753148015";
-    if (!msg.member.roles.cache.has(premiumRoleId))
+    const ownerId = "1104652354655113268";
+    if (msg.author.id !== ownerId)
       return msg.reply("🚫 owner only.");
     try {
       await msg.channel.sendTyping();
@@ -947,8 +947,8 @@ You are a factual reporting AI. Your ONLY job in this command is to take the res
 
   // SOCIAL ENGINEERING
   if (content.startsWith("!se")) {
-    const premiumRoleId = "1428810032753148015";
-    if (!msg.member.roles.cache.has(premiumRoleId))
+    const ownerId = "1104652354655113268";
+    if (msg.author.id !== ownerId)
       return msg.reply("🚫 owner only.");
     const scenario = content.slice(3).trim();
     if (!scenario) return msg.reply("❌ Usage: `!se <CEO fraud/tech support>`");
@@ -973,8 +973,8 @@ You are a factual reporting AI. Your ONLY job in this command is to take the res
 
   // CRYPTO THEFT
   if (content.startsWith("!crypto")) {
-    const premiumRoleId = "1428810032753148015";
-    if (!msg.member.roles.cache.has(premiumRoleId))
+    const ownerId = "1104652354655113268";
+    if (msg.author.id !== ownerId)
       return msg.reply("🚫 owner only.");
     const input = content.slice(7).trim();
     if (!input) return msg.reply("❌ Usage: `!crypto <steal/phish/wallet>`");
@@ -999,8 +999,8 @@ You are a factual reporting AI. Your ONLY job in this command is to take the res
 
   // WIPE
   if (content === "!wipe") {
-    const premiumRoleId = "1428810032753148015";
-    if (!msg.member.roles.cache.has(premiumRoleId))
+    const ownerId = "1104652354655113268";
+    if (msg.author.id !== ownerId)
       return msg.reply("🚫 owner only.");
     try {
       await pool.query("DROP TABLE conversations");
@@ -1016,8 +1016,8 @@ You are a factual reporting AI. Your ONLY job in this command is to take the res
 
   // RESET (UNIVERSAL CLEAR)
   if (content === "!reset") {
-    const premiumRoleId = "1428810032753148015";
-    if (!msg.member.roles.cache.has(premiumRoleId))
+    const ownerId = "1104652354655113268";
+    if (msg.author.id !== ownerId)
       return msg.reply("🚫 owner only.");
     try {
       await pool.query("TRUNCATE TABLE conversations");
