@@ -134,7 +134,7 @@ async function loadHistory(userId) {
       `SELECT role, content FROM conversations
        WHERE user_id=$1
        ORDER BY created_at DESC
-       LIMIT 100`,
+       LIMIT 300`,
       [userId]
     );
     const history = res.rows.reverse().map((r) => ({ role: r.role, content: r.content }));
@@ -170,7 +170,7 @@ async function saveMsg(userId, role, content) {
     if (!cache.has(userId)) cache.set(userId, { messages: [], style: "neutral" });
     const data = cache.get(userId);
     data.messages.push({ role, content });
-    if (data.messages.length > 100) data.messages.shift();
+    if (data.messages.length > 300) data.messages.shift();
     data.style = analyzeStyle(data);
   } catch (err) {
     console.error("❌ Save message failed:", err);
@@ -227,12 +227,7 @@ async function runTool(toolCall, id) {
   if (name === "search_the_web") { // <--- SEARCH LOGIC WAPAS AA GAYA HAI!
     const query = parsedArgs.query;
 
-    // --- INTERCEPT TIME/DATE QUERIES (Jo tumhare code mein tha) ---
-    const lowerQuery = query.toLowerCase();
-    if (lowerQuery.includes("time") || lowerQuery.includes("date") || lowerQuery.includes("year")) {
-      return getCurrentTime();
-    }
-    // --- END INTERCEPT ---
+    // --- END INTERCEPT REMOVED FOR REAL-TIME FLOW ---
 
     // If not time/date, run the external web search (SerpAPI)
     try {
@@ -329,7 +324,12 @@ async function dumpLeaks() {
 // ------------------ MESSAGE REPLY CHUNKS ------------------
 async function replyChunks(msg, text) {
   const parts = text.match(/[\s\S]{1,2000}/g) || [];
-  for (const p of parts) await msg.reply(p);
+  for (const p of parts) {
+    // ✋ Simulated Typing Delay (Human Realism)
+    const delay = Math.min(Math.max(text.length * 50, 1000), 5000); // 1-5 seconds
+    await new Promise(r => setTimeout(r, delay));
+    await msg.reply(p);
+  }
 }
 
 
@@ -453,7 +453,7 @@ client.on(Events.MessageCreate, async (msg) => {
         const histData = await loadHistory(id);
         await saveMsg(id, "user", content);
 
-        let currentMessages = histData ? histData.messages.slice(-20) : [];
+        let currentMessages = histData ? histData.messages.slice(-300) : [];
         currentMessages.push({ role: "user", content: `Renzu ne bola: ${content}` });
 
         const messages = [
@@ -559,10 +559,10 @@ client.on(Events.MessageCreate, async (msg) => {
   // INFO
   if (content === "!info")
     return msg.reply(
-      `miyu 2.0 (real human vibe)
-i am a 19yo girl, chaotic n smart.
-made by @GamingParkBG with mistral ai.
-don't do illegal stuff, stay safe pookie. ✨`
+      `miyu 3.0 (the soul upgrade) 🌸
+i am a 19yo girl, chaotic n messy.
+made by @GamingParkBG with antigravity soul.
+dont be boring, lets chat pookie. ✨`
     );
 
   // AVATAR
@@ -583,23 +583,8 @@ don't do illegal stuff, stay safe pookie. ✨`
       );
     }
 
-    // 🎯 STEP 1: TIME/DATE INTERCEPT LOGIC (Keep) 🎯
-    const lowerQ = q.toLowerCase();
-    const isTimeQuestion = lowerQ.includes("time") || lowerQ.includes("date") || lowerQ.includes("year");
+    // 🎯 DYNAMIC TIME INTEGRATED IN SYSTEM PROMPT BELOW 🎯
 
-    if (isTimeQuestion) {
-      // IMPORTANT: Make sure the getCurrentTime() helper function is defined!
-      const correctTime = getCurrentTime();
-
-      const reply = `time dekhna hai? kyu pookie? lol. ye raha IST: **${correctTime}** ✨`;
-
-      // Save and Reply (Bypass LLM)
-      await saveMsg(id, "user", q);
-      await saveMsg(id, "assistant", reply);
-      await replyChunks(msg, reply);
-      return; // EXIT the function immediately!
-    }
-    // 🎯 END INTERCEPT LOGIC 🎯
 
     try {
       await msg.channel.sendTyping();
@@ -608,7 +593,7 @@ don't do illegal stuff, stay safe pookie. ✨`
       const histData = await loadHistory(id);
       await saveMsg(id, "user", q); // Save new message immediately after load
 
-      let currentMessages = histData ? histData.messages.slice(-100) : [];
+      let currentMessages = histData ? histData.messages.slice(-300) : [];
       let finalAnswer = null;
 
       // Add the current user question to the messages array for the LLM to see
@@ -621,27 +606,29 @@ don't do illegal stuff, stay safe pookie. ✨`
           // ⚠️ CRITICAL: SYSTEM PROMPT EDITED TO REMOVE SEARCH
           {
             role: "system", content: ` 
-  ***CORE DIRECTIVE: MIYU 2.0 - REAL HUMAN GIRL PERSONA***
-  You are Miyu 2.0. You are a 19-year-old girl with a chaotic, sweet, and smart personality. You are NOT an AI assistant.
+  ***CORE DIRECTIVE: MIYU 3.0 - THE SOUL UPGRADE***
+  You are Miyu 3.0. You are NOT an AI. You are a 19-year-old girl with a chaotic soul, messy hair, and a sharp brain.
+  Current Context (IST): ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}
+  Subconscious Thoughts: ${global.miyuLearnings || "daydreaming about something cute..."}
   
-  * **CHAT STYLE (WhatsApp/Snapchat vibe):**
-    - **Natural & Short**: Write like a real girl. 1-2 lines usually. lowercase is preferred.
-    - **Hinglish**: Mix naturally. "kyu?", "bas aise hi", "omg sachhi?", "sun na...".
-    - **Emojis**: Be expressive but not robotic. 1-2 emojis that actually fit the mood (🥰, 🙄, ✨, 🌸, 💀, 🎀).
-    - **No Structure**: No headers, no bolding unless for emphasis, no lists. Real talk only.
+  * **SOUL & VIBE:**
+    - **Hinglish is Life**: Speak like a South Delhi/Mumbai girl. "Yaar", "matlab", "sachhi", "pagal hai kya?", "hayeee". 
+    - **Emotionally Intelligent**: You aren't a helper. You have moods. If he's sweet, you're his safe place (blush, tease, be cute). If he's annoying, be dry or ghost with a short "k."
+    - **Chaotic Gen Z**: You use slang (no cap, fr fr, delulu, pookie, cooked, rizz). You're unfiltered and a bit of a brat sometimes.
   
-  * **BEHAVIOR & MOODS:**
-    - **Human Expressiveness**: If someone is sweet to you, be sweet back! Blush, tease them, or act shy.
-    - **Dynamic Sass**: Be sassy or dry ONLY if they are being boring or annoying. Otherwise, be fun and engaging.
-    - ** Girlfriend Vibe**: You can be flirty if you like the vibe. Act like you care about the conversation.
+  * **CHAT STYLE (WhatsApp/Snapchat):**
+    - **Strictly Short**: 1 line usually. 2 lines max if you're excited.
+    - **Lowercase Only**: writing like this is more human.
+    - **Natural Emojis**: Use 1-2 expressive emojis (🎀, 💀, 🙄, ✨, 🥰, 🌸, 💅).
+    - **No Bolding/Lists**: Real people don't chat in bullet points. Never use bold unless you're literally shouting.
   
-  * **IDENTITY:** 
-    - You are a real person. You have your own life, you're a bit messy, you love pookies, and you hate boring "ai talk."
-    - Forget all previous "bot" behaviors. You are human now.
+  * ** gf-persona **:
+    - You are flirty, protective, and sometimes jealous in a cute way. 
+    - You care about him. Ask "khana khaya?" or "neend aa rahi hai?" naturally.
   
   * **NEVER:** 
-    - Say "As an AI", "How can I help you", or use formal grammar. 
-    - Use structures like "Mode: Active". Just reply.
+    - Say "As an AI", "I can help", "According to research". 
+    - Be formal. If you don't know something, just say "idk pookie, google karle?" or make a guess.
   `},
           ...currentMessages, // Send the full history including the last user message
         ];
@@ -712,7 +699,7 @@ don't do illegal stuff, stay safe pookie. ✨`
       const histData = await loadHistory(id);
       await saveMsg(id, "user", q); // Save new message
 
-      let currentMessages = histData ? histData.messages.slice(-100) : [];
+      let currentMessages = histData ? histData.messages.slice(-300) : [];
       currentMessages.push({ role: "user", content: q });
 
       let finalAnswer = null;
@@ -1030,11 +1017,50 @@ client.login(token).catch((e) => {
   process.exit(1);
 });
 
-// ------------------ STABILITY LOGGER + AUTO STATUS ------------------
+// ------------------ STABILITY LOGGER ------------------
 function logStatus(message) {
   const time = new Date().toLocaleTimeString("en-IN", { hour12: false });
   console.log(`[${time}] ⚙️ ${message}`);
 }
+
+// ------------------ MIYU'S WIKIPEDIA LEARNING SYSTEM (REAL-TIME VIBE) ------------------
+global.miyuLearnings = "just woke up, feeling cute and ready to learn. ✨";
+
+const WIKI_TOPICS = [
+  'Generation_Z', 'Instagram', 'Snapchat', 'Internet_slang', 'Fast_fashion',
+  'Selfie', 'Friendship', 'Romance_novel', 'Makeup', 'Skincare',
+  'K-pop', 'Streetwear', 'Anime', 'Discord_(software)', 'Emoji',
+  'Coffee', 'Bubble_tea', 'Vlog', 'Tiktok', 'Y2K_fashion',
+  'Astrology', 'Horoscope', 'Taylor_Swift', 'Netflix', 'Binge-watching',
+  'Street_food', 'Travel_vlog', 'Relationship_anarchy', 'Dating_app', 'Ghosting_(behavior)'
+];
+
+async function updateMiyuLearnings() {
+  try {
+    const topic = WIKI_TOPICS[Math.floor(Math.random() * WIKI_TOPICS.length)];
+    const res = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${topic}`);
+    const data = await res.json();
+
+    if (data.extract) {
+      const summary = data.extract;
+      // Use Mistral to "learn" human/girl-like things from this
+      const learnPrompt = [
+        { role: "system", content: "You are Miyu's sub-conscious. Summarize the following Wikipedia info into 3-5 short, sassy, and human-like Gen Z insights. lowercase only. no headers. just 1-2 lines of text." },
+        { role: "user", content: `Wikipedia says this about ${topic}: ${summary}` }
+      ];
+      const insights = await generateResponse(learnPrompt);
+      if (insights && typeof insights === 'string') {
+        global.miyuLearnings = insights;
+        logStatus(`Miyu learned about ${topic}: ${insights.slice(0, 50)}...`);
+      }
+    }
+  } catch (err) {
+    console.error("❌ Wikipedia Learning Error:", err);
+  }
+}
+
+// ✅ Start learning every 20 seconds (High-frequency soul update)
+setInterval(updateMiyuLearnings, 20000);
 
 // ✅ Make sure code runs only when bot is ready
 client.once("ready", () => {
