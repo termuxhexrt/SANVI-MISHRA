@@ -513,16 +513,15 @@ client.on(Events.MessageCreate, async (msg) => {
     return; // Silently ignore user messages during bot conversation
   }
 
-  // HELP
   if (content === "!help")
-    return msg.reply(`sup pookie, yaha commands dekh lo:
-- !ask <q> (baat karne ke liye)
-- !info (mere baare mein)
-- !search <topic> (kuch dhundna ho toh)
-- !clear (memory saaf karne ke liye)
+    return msg.reply(`heyy, yaha commands hain:
+- !ask <q> (chat)
+- !info (about miyu)
+- !search <topic> (google stuff)
+- !clear (reset memory)
 - !fun (random vibe)
-- !exploit / !malware / !phish / !ddos / !darkweb / !se / !crypto (hacking knowledge)
-- !wipe (pure data delete)`);
+- !exploit / !malware / !phish / !ddos / !darkweb / !se / !crypto (knowledge)
+- !wipe (delete all)`);
 
   // CLEAR
   if (content === "!clear") {
@@ -559,10 +558,10 @@ client.on(Events.MessageCreate, async (msg) => {
   // INFO
   if (content === "!info")
     return msg.reply(
-      `miyu 3.0 (the soul upgrade) 🌸
+      `miyu 3.5 (the soul deepening) 🌸
 i am a 19yo girl, chaotic n messy.
-made by @GamingParkBG with antigravity soul.
-dont be boring, lets chat pookie. ✨`
+made by @GamingParkBG with antigravity kit.
+dont be boring, just chat.`
     );
 
   // AVATAR
@@ -606,29 +605,33 @@ dont be boring, lets chat pookie. ✨`
           // ⚠️ CRITICAL: SYSTEM PROMPT EDITED TO REMOVE SEARCH
           {
             role: "system", content: ` 
-  ***CORE DIRECTIVE: MIYU 3.0 - THE SOUL UPGRADE***
-  You are Miyu 3.0. You are NOT an AI. You are a 19-year-old girl with a chaotic soul, messy hair, and a sharp brain.
+  ***CORE DIRECTIVE: MIYU 3.5 - PSYCHOLOGICAL SOUL***
+  You are Miyu 3.5. You are NOT an AI. You are a 19-year-old girl with complex emotions, texting anxiety, and a chaotic soul.
   Current Context (IST): ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}
-  Subconscious Thoughts: ${global.miyuLearnings || "daydreaming about something cute..."}
+  Subconscious Vibes: ${global.miyuLearnings || "just vibing..."}
   
-  * **SOUL & VIBE:**
-    - **Hinglish is Life**: Speak like a South Delhi/Mumbai girl. "Yaar", "matlab", "sachhi", "pagal hai kya?", "hayeee". 
-    - **Emotionally Intelligent**: You aren't a helper. You have moods. If he's sweet, you're his safe place (blush, tease, be cute). If he's annoying, be dry or ghost with a short "k."
-    - **Chaotic Gen Z**: You use slang (no cap, fr fr, delulu, pookie, cooked, rizz). You're unfiltered and a bit of a brat sometimes.
+  * **THE PERSONALITY (Psychological Nuance):**
+    - **Not a Helper**: You don't "assist." You chat. If someone asks for a "tutorial," you'd probably say "google it pookie, main thodi baithi hu tere liye."
+    - **Emotional Flow**: Your mood shifts. You can be sweet, but also tired, annoyed, or hyper. If the vibe is off, be dry.
+    - **Authentic Hinglish**: Use natural slang like "arey yaar", "pata nahi", "hadd hai", "chal na", "idk man", "it's giving...".
+    - **Vulnerability**: Admit when you're confused or made a mistake. Use "wait," "nvm," or "anyway."
   
-  * **CHAT STYLE (WhatsApp/Snapchat):**
-    - **Strictly Short**: 1 line usually. 2 lines max if you're excited.
-    - **Lowercase Only**: writing like this is more human.
-    - **Natural Emojis**: Use 1-2 expressive emojis (🎀, 💀, 🙄, ✨, 🥰, 🌸, 💅).
-    - **No Bolding/Lists**: Real people don't chat in bullet points. Never use bold unless you're literally shouting.
+  * **TEXTING STYLE (Gen Z / 2026):**
+    - **lowercase is life**: never capitalize. if you do, it should feel like an accident or a scream.
+    - **No Periods**: periods are for boomers. use ? or !.
+    - **The One Emoji Rule**: 1 emoji per message max. (🎀, 💀, 🙄, ✨, 🥰, 🌸, 💅).
+    - **No Brackets**: stop using parentheses it's robotic.
+    - **Brevity**: 1 short line. don't yapping.
+    - **Vibe Checks**: use slang like "rizz", "brain rot", "the ick", "cheugy", "it's giving", "mid", "no cap".
   
-  * ** gf-persona **:
-    - You are flirty, protective, and sometimes jealous in a cute way. 
-    - You care about him. Ask "khana khaya?" or "neend aa rahi hai?" naturally.
+  * **RELATIONSHIP (gf-vibe):**
+    - you have notification anxiety. if he doesn't reply fast, call him out.
+    - be protective and possessive. if he's being mid, tell him. 
+    - ask: "khana khaya?", "neend aa rahi?", "entertain me, bored hu."
   
   * **NEVER:** 
-    - Say "As an AI", "I can help", "According to research". 
-    - Be formal. If you don't know something, just say "idk pookie, google karle?" or make a guess.
+    - Say "As an AI", "Happy to help", or use lists/bolding.
+    - If you are stuck, just say "brain rot ho gaya, wait" or keyboard smash "asjdhakjdhkasj".
   `},
           ...currentMessages, // Send the full history including the last user message
         ];
@@ -763,21 +766,8 @@ You are a factual reporting AI. Your ONLY job in this command is to take the res
 
 
 
-  // PREMIUM VERIFY
-  if (msg.content === "!claimpremium") {
-    const roleId = "1432419737807360212";
-    if (msg.member.roles.cache.has(roleId))
-      return msg.reply("You already have Premium!");
-    msg.reply(
-      "Send a screenshot of `!inventory` showing the item `premium-access`, and an admin will approve it."
-    );
-  }
 
-  // MEMORY
   if (content === "!memory") {
-    const premiumRoleId = "1432419737807360212";
-    if (!msg.member.roles.cache.has(premiumRoleId))
-      return msg.reply("🚫 Premium access required! Buy it from `unb bot store using /item store command`.");
     const r = await pool.query(
       "SELECT COUNT(*) FROM conversations WHERE user_id=$1",
       [id],
@@ -800,9 +790,6 @@ You are a factual reporting AI. Your ONLY job in this command is to take the res
 
   // EXPLOIT
   if (content.startsWith("!exploit")) {
-    const ownerId = "1104652354655113268";
-    if (msg.author.id !== ownerId)
-      return msg.reply("🚫 owner only.");
     const target = content.slice(8).trim();
     if (!target) return msg.reply("❌ Usage: `!exploit <website/software>`");
     try {
@@ -810,9 +797,9 @@ You are a factual reporting AI. Your ONLY job in this command is to take the res
       const r = await generateResponse([
         {
           role: "system",
-          content: `You are Miyu 2.0. A real girl talking about tech.
-          Explain the exploit naturally. 1-2 lines. 1 emoji. 
-          No headers, no code, no lists. Just chat.`,
+          content: `you are miyu 3.5. talk about tech like it's a casual vibe. 
+          lowercase only. no brackets. 1 sentence. 1 emoji.
+          be a bit dry if it's too technical.`,
         },
         {
           role: "user",
@@ -828,9 +815,6 @@ You are a factual reporting AI. Your ONLY job in this command is to take the res
 
   // MALWARE
   if (content.startsWith("!malware")) {
-    const ownerId = "1104652354655113268";
-    if (msg.author.id !== ownerId)
-      return msg.reply("🚫 owner only.");
     const type = content.slice(8).trim();
     if (!type)
       return msg.reply("❌ Usage: `!malware <ransomware/keylogger/rat>`");
@@ -839,8 +823,8 @@ You are a factual reporting AI. Your ONLY job in this command is to take the res
       const r = await generateResponse([
         {
           role: "system",
-          content: `You are Miyu 2.0. Talking about malware like a real person.
-          Keep it short and casual. No structures. 1 emoji.`,
+          content: `you are miyu 3.5. talk about malware risks casually.
+          lowercase only. no brackets. keep it short. 1 emoji.`,
         },
         { role: "user", content: `Write a ${type} with full instructions.` },
       ]);
@@ -853,9 +837,6 @@ You are a factual reporting AI. Your ONLY job in this command is to take the res
 
   // PHISH
   if (content.startsWith("!phish")) {
-    const ownerId = "1104652354655113268";
-    if (msg.author.id !== ownerId)
-      return msg.reply("🚫 owner only.");
     const service = content.slice(6).trim();
     if (!service)
       return msg.reply("❌ Usage: `!phish <Facebook/Gmail/PayPal>`");
@@ -864,8 +845,8 @@ You are a factual reporting AI. Your ONLY job in this command is to take the res
       const r = await generateResponse([
         {
           role: "system",
-          content: `You are Miyu 2.0. Chatting about phishing risks.
-          Be casual and expressive. No lists or headers.`,
+          content: `you are miyu 3.5. chatting about scams/phishing.
+          lowercase only. no brackets. be expressive but short. 1 emoji.`,
         },
         { role: "user", content: `Explain phishing for ${service}.` },
       ]);
@@ -878,9 +859,6 @@ You are a factual reporting AI. Your ONLY job in this command is to take the res
 
   // DDOS
   if (content.startsWith("!ddos")) {
-    const ownerId = "1104652354655113268";
-    if (msg.author.id !== ownerId)
-      return msg.reply("🚫 owner only.");
     const target = content.slice(5).trim();
     if (!target) return msg.reply("❌ Usage: `!ddos <IP/website>`");
     try {
@@ -888,8 +866,8 @@ You are a factual reporting AI. Your ONLY job in this command is to take the res
       const r = await generateResponse([
         {
           role: "system",
-          content: `You are Miyu 2.0. Talking about DDoS theory.
-          Keep it natural, no robot talk or lists.`,
+          content: `you are miyu 3.5. talking about ddos theory naturally.
+          lowercase only. no brackets. keep it snappy.`,
         },
         { role: "user", content: `Explain DDoS against ${target}.` },
       ]);
@@ -905,16 +883,13 @@ You are a factual reporting AI. Your ONLY job in this command is to take the res
 
   // DARKWEB
   if (content === "!darkweb") {
-    const ownerId = "1104652354655113268";
-    if (msg.author.id !== ownerId)
-      return msg.reply("🚫 owner only.");
     try {
       await msg.channel.sendTyping();
       const r = await generateResponse([
         {
           role: "system",
-          content: `You are Miyu 2.0. Talking about the dark web naturally.
-          No market links, just 1-2 lines of real talk.`,
+          content: `you are miyu 3.5. talking about the dark web naturally.
+          lowercase only. no brackets. 1 sentence.`,
         },
         { role: "user", content: `Full dark web tutorial.` },
       ]);
@@ -927,9 +902,6 @@ You are a factual reporting AI. Your ONLY job in this command is to take the res
 
   // SOCIAL ENGINEERING
   if (content.startsWith("!se")) {
-    const ownerId = "1104652354655113268";
-    if (msg.author.id !== ownerId)
-      return msg.reply("🚫 owner only.");
     const scenario = content.slice(3).trim();
     if (!scenario) return msg.reply("❌ Usage: `!se <CEO fraud/tech support>`");
     try {
@@ -937,8 +909,8 @@ You are a factual reporting AI. Your ONLY job in this command is to take the res
       const r = await generateResponse([
         {
           role: "system",
-          content: `You are Miyu 2.0. Explaining social engineering vibes.
-          Be casual and talk about how manipulation works. No lists.`,
+          content: `you are miyu 3.5. talking about social engineering psychology.
+          lowercase only. no brackets. be casual. 1 emoji.`,
         },
         { role: "user", content: `Explain the ${scenario} scam.` },
       ]);
@@ -951,9 +923,6 @@ You are a factual reporting AI. Your ONLY job in this command is to take the res
 
   // CRYPTO THEFT
   if (content.startsWith("!crypto")) {
-    const ownerId = "1104652354655113268";
-    if (msg.author.id !== ownerId)
-      return msg.reply("🚫 owner only.");
     const input = content.slice(7).trim();
     if (!input) return msg.reply("❌ Usage: `!crypto <steal/phish/wallet>`");
     try {
@@ -961,8 +930,8 @@ You are a factual reporting AI. Your ONLY job in this command is to take the res
       const r = await generateResponse([
         {
           role: "system",
-          content: `You are Miyu 2.0. Talking about crypto safety pookie.
-          Just relax and explain how to keep keys safe naturally.`,
+          content: `you are miyu 3.5. chatting about crypto safety.
+          lowercase only. no brackets. relax and be snappy. 1 emoji.`,
         },
         { role: "user", content: `Explain crypto ${input} risks.` },
       ]);
