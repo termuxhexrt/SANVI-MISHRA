@@ -560,7 +560,7 @@ client.on(Events.MessageCreate, async (msg) => {
 
   // --- MIYU TRACKING (SOUL & CONTEXT) ---
   if (!userStats.has(id)) {
-    userStats.set(id, { msgCount: 0, gender: 'male', naughtyMode: false });
+    userStats.set(id, { msgCount: 0, gender: 'unknown', naughtyMode: false });
   }
   const stats = userStats.get(id);
   stats.msgCount += 1;
@@ -592,7 +592,16 @@ dont be mid or ill ghost u 💀`
   if (content === "!avatar")
     return msg.reply(user.displayAvatarURL({ dynamic: true, size: 1024 }));
 
-  // index.js (Inside client.on('messageCreate', ...) - REPLACE ALL OLD COMMANDS)
+  // GENDER COMMAND
+  if (content.startsWith("!gender")) {
+    const g = content.slice(7).trim().toLowerCase();
+    if (g === "male" || g === "female") {
+      stats.gender = g;
+      return msg.reply(`acha theek hai... abse tu ${g} hai. yaad rahega.`);
+    }
+    return msg.reply("gender batana pta hai? usage: !gender male ya female.");
+  }
+
   // index.js (Inside client.on('messageCreate', ...))
 
   // ASK COMMAND (UNIFIED WITH FUNCTION CALLING)
@@ -602,8 +611,13 @@ dont be mid or ill ghost u 💀`
 
     if (!q) {
       return msg.reply(
-        "❌ **Usage:** `!ask <your question>`\n**Example:** `!ask Miyu, i love you` 🌚💕💬"
+        "usage: !ask <kuch toh puch bc>"
       );
+    }
+
+    // PROACTIVE GENDER ASK
+    if (stats.gender === 'unknown') {
+      return msg.reply("sun na... pehle ye toh bta tu ladka hai ya ladki? (!gender male/female use kar pehle)");
     }
 
     // 🎯 DYNAMIC TIME INTEGRATED IN SYSTEM PROMPT BELOW 🎯
