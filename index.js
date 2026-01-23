@@ -323,13 +323,21 @@ async function dumpLeaks() {
 }
 
 
-// ------------------ MESSAGE REPLY CHUNKS ------------------
-async function replyChunks(msg, text) {
+// ------------------ MESSAGE REPLY CHUNKS (HUMAN TIMING) ------------------
+async function replyChunks(msg, text, incomingLength = 0) {
+  // 1. READING PHASE (Wait based on how long the user's message was)
+  const readDelay = Math.min(incomingLength * 20, 3000); // Max 3s reading
+  if (readDelay > 500) await new Promise(r => setTimeout(r, readDelay));
+
+  // 2. TYPING PHASE
+  await msg.channel.sendTyping();
+
+  // Calculate typing speed (average 40ms per char) + random jitter
+  const typingDelay = Math.min(text.length * 40 + (Math.random() * 2000), 8000);
+  await new Promise(r => setTimeout(r, typingDelay));
+
   const parts = text.match(/[\s\S]{1,2000}/g) || [];
   for (const p of parts) {
-    // ✋ Simulated Typing Delay (Human Realism)
-    const delay = Math.min(Math.max(text.length * 50, 1000), 5000); // 1-5 seconds
-    await new Promise(r => setTimeout(r, delay));
     await msg.reply(p);
   }
 }
@@ -602,8 +610,6 @@ dont be mid or ill ghost u 💀`
 
 
     try {
-      await msg.channel.sendTyping();
-
       // Load history before saving new message
       const histData = await loadHistory(id);
       await saveMsg(id, "user", q); // Save new message immediately after load
@@ -685,7 +691,7 @@ CURRENT TIME: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })
       // Final Reply
       if (finalAnswer) {
         await saveMsg(id, "assistant", finalAnswer);
-        await replyChunks(msg, finalAnswer);
+        await replyChunks(msg, finalAnswer, q.length);
       }
 
     } catch (err) {
