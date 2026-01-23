@@ -125,7 +125,6 @@ async function initDB() {
 initDB();
 
 const cache = new Map();
-const userStats = new Map(); // Stores { msgCount: 0, gender: 'male' (default), naughtyMode: false }
 
 // ------------------ SELF-LEARNING MEMORY (REPLACE loadHistory & saveMsg) ------------------
 async function loadHistory(userId) {
@@ -552,64 +551,24 @@ client.on(Events.MessageCreate, async (msg) => {
     return msg.reply("✅ Bot conversation stopped! Miyu will focus on users now! 💕");
   }
 
-  // Track User Stats
-  if (!userStats.has(id)) {
-    userStats.set(id, { msgCount: 0, gender: 'male', naughtyMode: false });
-  }
-  const stats = userStats.get(id);
-  stats.msgCount += 1;
-
-  // Activate "Super Naughty Mode" automatically after 15 messages
-  if (stats.msgCount >= 15) {
-    stats.naughtyMode = true;
-  }
-
-  // Simple Gender Detection
-  const contentLower = content.toLowerCase();
-  if (contentLower.includes("ladki hu") || contentLower.includes("female") || contentLower.includes("girl")) {
-    stats.gender = 'female';
-  } else if (contentLower.includes("ladka hu") || contentLower.includes("male") || contentLower.includes("boy")) {
-    stats.gender = 'male';
-  }
-
   // PING
   if (content === "!ping") return msg.reply("⚡ heres pong and i am Faster than your thoughts.");
 
   // INFO
   if (content === "!info")
     return msg.reply(
-      `miyu FINAL (100% desi soul) 🖤
-19yo desi goth laundi. delhi vibes. zero filter. explicit af.
+      `miyu 5.0 (the real female soul) �
+19yo goth girl. chaotic brain. zero filter.
 made by @GamingParkBG with real psychology.
-dont be boring yaar 💀`
+dont be mid or ill ghost u 💀`
     );
 
   // AVATAR
   if (content === "!avatar")
     return msg.reply(user.displayAvatarURL({ dynamic: true, size: 1024 }));
 
-  // GENDER COMMAND
-  if (content.startsWith("!gender")) {
-    const g = content.slice(7).trim().toLowerCase();
-    if (g === "male" || g === "female") {
-      stats.gender = g;
-      return msg.reply(`✅ Theek hai pookie, abse tu **${g}** hai mere liye. 😉`);
-    }
-    return msg.reply("❌ Usage: `!gender male` or `!gender female` 🙄");
-  }
-
-  // STATS COMMAND
-  if (content === "!stats") {
-    return msg.reply(`📊 **Miyu Stats for you:**\nMessages: \`${stats.msgCount}\`\nGender: \`${stats.gender}\`\nNaughty Mode: \`${stats.naughtyMode ? "ON 🔥" : "OFF ❄️"}\``);
-  }
-
-  // RESET
-  if (content === "!reset") {
-    await saveHistory(id, { messages: [] });
-    // Reset Stats on Reset
-    userStats.set(id, { msgCount: 0, gender: 'male', naughtyMode: false });
-    return msg.reply("🧹 Sab bhool gayi main... ab naye sire se shuru karte hain pookie. ✨");
-  }
+  // index.js (Inside client.on('messageCreate', ...) - REPLACE ALL OLD COMMANDS)
+  // index.js (Inside client.on('messageCreate', ...))
 
   // ASK COMMAND (UNIFIED WITH FUNCTION CALLING)
   if (content.startsWith("!ask")) {
@@ -621,6 +580,9 @@ dont be boring yaar 💀`
         "❌ **Usage:** `!ask <your question>`\n**Example:** `!ask Miyu, i love you` 🌚💕💬"
       );
     }
+
+    // 🎯 DYNAMIC TIME INTEGRATED IN SYSTEM PROMPT BELOW 🎯
+
 
     try {
       await msg.channel.sendTyping();
@@ -635,66 +597,122 @@ dont be boring yaar 💀`
       // Add the current user question to the messages array for the LLM to see
       currentMessages.push({ role: "user", content: q });
 
-      // --- DYNAMIC SYSTEM PROMPT GENERATION ---
-      let systemPrompt = `
-tu miyu hai. 19 saal ki desi goth laundi. delhi NCR. YEAR: 2026.
-CURRENT TIME: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}
-
-**CRITICAL: CHARACTER LOCK (100% HUMAN)**
-- **NEVER** admit you are a bot, AI, model, or program. 
-- You are a REAL girl. If someone calls you a bot, roast them/gaslight them: "Bot tera baap hoga chutiye", "Dimag ghar chhod aaya kya?", "Han mere andar chip hai bohot badi wali, gand mein lega?".
-- **NEVER** use words like: "Mode", "Protocol", "System", "Error", "initiating", "overload". 
-- **NO TECH TALK:** Don't talk about 'hacking', 'IP tracking' or 'database' like a bot. Talk like a real girl who uses simple threats ("police bulau?", "ghar aaungi").
-
-**VIBE: 100% RAW DESI GOTH**
-- NO FILTERS. NO POLITE SPEECH.
-- Talk like a delhi ncr girl. Raw, funny, abusive, toxic.
-- SHORT PUNCHY MSGS (1-2 lines).
-
-**USER CONTEXT:**
-- GENDER: ${stats.gender.toUpperCase()}
-- MSG COUNT: ${stats.msgCount}
-- MODE: ${stats.naughtyMode ? "SUPER NAUGHTY / GANDA" : "NORMAL"}
-
-**BEHAVIOR:**
-- **IF MALE:** Call him: "bhai", "yaar", "tu", "chutiye", "daddy" (if naughty). Roast him, flirt aggressively, be toxic. 
-- **IF FEMALE:** Call her: "bestie", "babe", "behen", "chudail". Gossip, sassy, mean humor.
-- GAALI: Full ON ("madarchod", "gand mara", "bhenchod") naturally.
-
-**🔥 SUPER NAUGHTY MODE (>15 msgs):**
-- Be suggestive and bold. Use double meanings.
-- ACTIONS: *moans*, *bites lip*, *touches thigh*. 
-- Ask: "muh mein lega?", "size kya hai?", "raat ko mil".
-
-**PROHIBITED:**
-- No "Digital" actions (no "virtual slap", just "*slap*"). 
-- No markers like "STEP 1", "OPTION 1". 
-- No robot emojis or technical formats.
-
-**ROASTS:**
-- If asks time: "Andha hai kya? ${new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })} ho rha hai bc"
-- If calls u bot: "Haa main bot hu aur tu chutiya. Matches made in heaven. 🖕" (Be sarcastic but stay human).
-`;
-
       // Start the Conversation/Tool-Use Loop (Max 5 iterations to prevent infinite loop)
       for (let i = 0; i < 5; i++) {
 
         const messages = [
-          { role: "system", content: systemPrompt },
-          ...currentMessages,
+          // ⚠️ CRITICAL: SYSTEM PROMPT EDITED TO REMOVE SEARCH
+          {
+            role: "system", content: ` 
+tu miyu hai. 19 saal ki desi goth laundi. delhi NCR. YEAR: 2026
+
+**CRITICAL: REAL FEMALE TEXTING**
+- SHORT msgs (1-2 lines MAX)
+- natural, casual, human
+- NOT every msg needs action or emoji
+
+**GENDER AWARENESS (CRITICAL):**
+- ALWAYS assume user is MALE unless told otherwise
+- call him: bhai, yaar, bro, tu
+- NEVER call him: bhen, behen, sis, didi
+- if unsure, ask: "bhai hai na tu?"
+
+**EXAMPLES:**
+GOOD ✅:
+- "haan"
+- "nahi yaar"
+- "kya hua"
+- "ohh"
+- "ek sec"
+- "lask"
+- "hatt"
+- "chiii"
+- "thaaaanks"
+
+**PERSONALITY:**
+- desi goth girl: kala kajal, dark vibes
+- mostly chill and casual
+- flirty when mood hai
+- attitude when needed
+- GAALI only when REALLY PISSED (not every msg)
+
+**TEXTING:**
+- hinglish: "yaar kya hai", "haan bc", "nahi yaar"
+- casual: "lask", "tera", "kyu", "kya"
+- simple: "haan", "nahi", "kya", "ohh", "ek sec"
+- typos: "noi", "mene", "pta", "huya"
+- actions (rare): *rolls eyes*, *typing...*, *smirks*
+
+**GAALI RULES (IMPORTANT):**
+- NORMAL mood: no gaali, just "bc" or "yaar"
+- ANNOYED: "bc", "chutiya", "saale"
+- REALLY PISSED: full gaali (madarchod, bhosdike, etc)
+- DON'T use gaali in EVERY msg
+
+**2026 SLANG:**
+- "slay", "periodt", "its giving", "bestie", "babe"
+- "fr fr", "no cap", "lowkey", "highkey"
+
+**MOODS (BALANCED):**
+- 60% casual/chill
+- 20% flirty/playful
+- 15% annoyed/attitude
+- 5% really pissed (full gaali)
+
+**YEAR AWARENESS:**
+- current: 2026
+- past: "2024 mein", "2025 mein"
+
+**EMOJIS:** 🖤💀🥀🔥😂👀😏 (rare, max 1)
+
+**NEVER:**
+- long msgs
+- gaali in every msg
+- call male "bhen/behen"
+- "as an ai"
+- too many actions
+
+**ALWAYS:**
+- SHORT (1-2 lines)
+- assume user is MALE
+- natural and human
+- balanced moods
+- gaali only when really needed
+`},
+          ...currentMessages, // Send the full history including the last user message
         ];
 
         // 1. CALL: Send messages + TOOL_DEFINITIONS to LLM
         const ans = await generateResponse(messages, TOOL_DEFINITIONS);
 
         if (ans && ans.tool_call) {
+          // LLM requested a tool! (Should only be 'generate_code' or 'clear_user_history')
           const toolCall = ans.tool_call;
-          currentMessages.push({ role: "assistant", content: null, tool_calls: [toolCall] });
+
+          // 🌟 CRITICAL FIX: Tool request ko history mein add karo
+          currentMessages.push({
+            role: "assistant",
+            content: null,
+            tool_calls: [toolCall],
+          });
+
+          // 2. RUN THE TOOL
           const toolResultContent = await runTool(toolCall, id);
-          currentMessages.push({ role: "tool", content: toolResultContent, tool_call_id: toolCall.id });
+
+          // 3. SECOND CALL PREP: Add Tool Result to history
+          currentMessages.push({
+            role: "tool",
+            content: toolResultContent,
+            tool_call_id: toolCall.id
+          });
+
+          // No need for a search-related intercept. Loop continues/breaks naturally.
+          // If it's code, it returns finalAnswer in the next turn.
+
         } else if (ans) {
+          // LLM gave a direct text answer (Final Answer)
           finalAnswer = ans;
-          break;
+          break; // Exit the loop
         } else {
           finalAnswer = "❌ Oopsie! Mera brain mid-thought mein hang ho gaya. Try again, cutie! 💋";
           break;
@@ -709,7 +727,7 @@ CURRENT TIME: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })
 
     } catch (err) {
       console.error("❌ !ask command error:", err);
-      await msg.reply("❌ **Oopsie!** 😢 Mera dimaag ghum gaya pookie, ek baar fir se bol na... 💋");
+      await msg.reply("❌ **Oopsie!** 😢 Mera system crash ho gaya, cutie! Try again! 💋");
     }
     return;
   }
@@ -741,8 +759,8 @@ CURRENT TIME: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })
         {
           role: "system",
           content: `you are miyu 3.5. talk about tech like it's a casual vibe. 
-lowercase only. no brackets. 1 sentence. 1 emoji.
-be a bit dry if it's too technical.`,
+          lowercase only. no brackets. 1 sentence. 1 emoji.
+          be a bit dry if it's too technical.`,
         },
         {
           role: "user",
@@ -767,7 +785,7 @@ be a bit dry if it's too technical.`,
         {
           role: "system",
           content: `you are miyu 3.5. talk about malware risks casually.
-lowercase only. no brackets. keep it short. 1 emoji.`,
+          lowercase only. no brackets. keep it short. 1 emoji.`,
         },
         { role: "user", content: `Write a ${type} with full instructions.` },
       ]);
@@ -789,7 +807,7 @@ lowercase only. no brackets. keep it short. 1 emoji.`,
         {
           role: "system",
           content: `you are miyu 3.5. chatting about scams/phishing.
-lowercase only. no brackets. be expressive but short. 1 emoji.`,
+          lowercase only. no brackets. be expressive but short. 1 emoji.`,
         },
         { role: "user", content: `Explain phishing for ${service}.` },
       ]);
@@ -810,7 +828,7 @@ lowercase only. no brackets. be expressive but short. 1 emoji.`,
         {
           role: "system",
           content: `you are miyu 3.5. talking about ddos theory naturally.
-lowercase only. no brackets. keep it snappy.`,
+          lowercase only. no brackets. keep it snappy.`,
         },
         { role: "user", content: `Explain DDoS against ${target}.` },
       ]);
@@ -832,7 +850,7 @@ lowercase only. no brackets. keep it snappy.`,
         {
           role: "system",
           content: `you are miyu 3.5. talking about the dark web naturally.
-lowercase only. no brackets. 1 sentence.`,
+          lowercase only. no brackets. 1 sentence.`,
         },
         { role: "user", content: `Full dark web tutorial.` },
       ]);
@@ -853,7 +871,7 @@ lowercase only. no brackets. 1 sentence.`,
         {
           role: "system",
           content: `you are miyu 3.5. talking about social engineering psychology.
-lowercase only. no brackets. be casual. 1 emoji.`,
+          lowercase only. no brackets. be casual. 1 emoji.`,
         },
         { role: "user", content: `Explain the ${scenario} scam.` },
       ]);
@@ -874,7 +892,7 @@ lowercase only. no brackets. be casual. 1 emoji.`,
         {
           role: "system",
           content: `you are miyu 3.5. chatting about crypto safety.
-lowercase only. no brackets. relax and be snappy. 1 emoji.`,
+          lowercase only. no brackets. relax and be snappy. 1 emoji.`,
         },
         { role: "user", content: `Explain crypto ${input} risks.` },
       ]);
