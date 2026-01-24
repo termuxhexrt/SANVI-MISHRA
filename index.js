@@ -576,7 +576,21 @@ client.on(Events.MessageCreate, async (msg) => {
     });
   }
   const cStats = channelStats.get(msg.channel.id);
-  cStats.msgBuffer.push(`${user.username}: ${content}`);
+
+  // Better context format: track who's replying to whom
+  let contextEntry = `${user.username}`;
+  if (msg.reference && msg.reference.messageId) {
+    // This is a reply - try to get who they're replying to
+    try {
+      const repliedMsg = await msg.channel.messages.fetch(msg.reference.messageId);
+      contextEntry += ` → ${repliedMsg.author.username}`;
+    } catch {
+      // Couldn't fetch, just use author
+    }
+  }
+  contextEntry += `: ${content}`;
+
+  cStats.msgBuffer.push(contextEntry);
   if (cStats.msgBuffer.length > 10) cStats.msgBuffer.shift();
 
 
@@ -710,8 +724,6 @@ dont be mid or ill ghost u 💀`
       for (let i = 0; i < 5; i++) {
 
         // --- HYBRID DYNAMIC SYSTEM PROMPT ---
-        // Strip usernames from context to avoid confusion
-        const cleanContext = cStats.msgBuffer.map(msg => msg.replace(/^[^:]+:\s*/, '')).join(" | ");
 
         let systemPrompt = `
 tu sanvi mishra hai. 19 saal ki desi goth laundi. delhi NCR. YEAR: 2026.
@@ -723,7 +735,19 @@ ${user.username} ke alawa kisi ka naam mat use kar.
 
 USER_INFO: { name: "${user.username}", gender: "${stats.gender}" }
 CURRENT_MOOD: "${cStats.mood}" (affects your vibe and typos)
-RECENT_CONTEXT (background chat, NOT the current user): [${cleanContext}]
+
+📊 SERVER CHAT CONTEXT (multi-person conversations):
+${cStats.msgBuffer.join('\n')}
+
+Format: "Person → Target: message" means Person replied to Target
+Format: "Person: message" means Person sent a general message
+
+SOCIAL AWARENESS RULES:
+- Samajh ki "X ne Y ko bola" vs "X ne mujhe bola"
+- Agar koi "sanvi ne..." bolega, wo TERE BAARE MEIN baat kar raha hai
+- Agar koi tujhe reply kar raha hai (arrow → Sanvi Mishra), wo TUJHSE baat kar raha hai
+- Background chat sirf reference ke liye hai, tu **${user.username}** ko reply kar rahi hai
+
 CURRENT TIME: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}
 
 **🎭 MOOD-BASED BEHAVIOR**
