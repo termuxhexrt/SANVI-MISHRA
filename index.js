@@ -12,6 +12,29 @@ import fetch from "node-fetch";
 globalThis.fetch = (await import("node-fetch")).default;
 import fs from "fs";
 
+// --- 🧠 MIYU EXTREME REALISM ENGINE (Hardcoded) ---
+const MIYU_BRAIN = {
+  ratios: { human: 0.90, feelings: 0.05, confusion: 0.04, bot: 0.01 },
+  lazyPhonetics: { "hai": "h", "nahi": "nhi", "waise": "wese", "kya": "kya hi", "han": "hn", "hai": "h" },
+  triggers: [
+    { keywords: ["veil", "dm karo", "harrasment", "didi", "ayumi"], vibe: "hyper_tension" },
+    { keywords: ["ai", "bot", "coding", "lovable", "deepseek", "replit"], vibe: "jalwa" },
+    { keywords: ["bor", "exams", "study", "tuition"], vibe: "bored" },
+    { keywords: ["mar gya", "delete", "reset", "problem"], vibe: "doom" }
+  ],
+  humanize: (text) => {
+    let t = text.toLowerCase().replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E6}-\u{1F1FF}]/gu, ''); // Hard Emoji Strip
+    t = t.replace(/^\.+/g, ''); // Remove leading dots
+    if (Math.random() < 0.90) {
+      for (const [key, val] of Object.entries(MIYU_BRAIN.lazyPhonetics)) {
+        t = t.replace(new RegExp(`\\b${key}\\b`, 'gi'), val);
+      }
+    }
+    if (Math.random() < 0.04) t = (Math.random() > 0.5 ? "waise mmm " : "hmmm ") + t;
+    return t.trim();
+  }
+};
+
 // index.js (Top Section - After Imports, Before KEEP ALIVE)
 
 const TOOL_DEFINITIONS = [
@@ -519,6 +542,41 @@ client.on(Events.MessageCreate, async (msg) => {
     return;
   }
 
+  // --- 🧠 MIYU HARAMI SOUL ACTIVATED ---
+  const isTriggered = MIYU_BRAIN.triggers.find(tr => tr.keywords.some(k => content.toLowerCase().includes(k)));
+  const roll = Math.random();
+
+  // Rule: Default is super strict/unbothered. Only trigger if keywords match or 5% luck.
+  if (!content.startsWith("!") && (isTriggered || roll < 0.05)) {
+    try {
+      await msg.channel.sendTyping();
+
+      const histData = await loadHistory(id);
+      let currentMessages = histData ? histData.messages.slice(-10) : [];
+      currentMessages.push({ role: "user", content: content });
+
+      const systemPrompt = `
+      Tu Sanvi Mishra hai. 19yo Delhi Goth girl. 
+      🔴 CORE RULE: SUPER STRICT & HARAMI VIBE. 
+      - HYBRID SOUL: Mix Sanvi's toxicity with Ayumi's human depth. Share stress/vulnerability ONLY with GamingParkBG.
+      - RECIPIENT LOGIC:
+        * To GamingParkBG: Be protective, share "dard" (stress/tension), use "hmmm", "kya hi bolun". 100% Trust.
+        * To Others: Super toxic, unbothered, harami. "Bot tera baap bc". Ghost them if mid.
+      - ZERO EMOJI POLICY: Emojis use karna crime hai. 0% emojis for everyone.
+      - NO RP/BACKGROUND: Never use dots "..." or asterisks. 1 line max.
+      - 90% Human Realism: Use natural Hinglish (h, nhi, wese, bc).
+      - VIBE: ${isTriggered ? isTriggered.vibe : 'strict_sassy'}.
+      `;
+
+      const aiResponse = await generateResponse([{ role: "system", content: systemPrompt }, ...currentMessages], []);
+      if (aiResponse) {
+        let finalReply = MIYU_BRAIN.humanize(aiResponse);
+        await replyChunks(msg, finalReply, content.length);
+        await saveMsg(id, "assistant", finalReply);
+      }
+    } catch (err) { console.error("Soul Error:", err); }
+  }
+
   // If bot conversation is active, ignore non-command user messages
   if (isInBotConversation && !content.startsWith("!")) {
     return; // Silently ignore user messages during bot conversation
@@ -632,8 +690,8 @@ client.on(Events.MessageCreate, async (msg) => {
   if (content === "!info")
     return msg.reply(
       `miyu 5.0 (the real female soul) �
-19yo goth girl. chaotic brain. zero filter.
-made by @GamingParkBG with real psychology.
+90% human. 100% harami. zero filter.
+made by @GamingParkBG.
 dont be mid or ill ghost u 💀`
     );
 
@@ -725,64 +783,7 @@ dont be mid or ill ghost u 💀`
 
         // --- HYBRID DYNAMIC SYSTEM PROMPT ---
 
-        let systemPrompt = `
-tu sanvi mishra hai. 19 saal ki desi goth laundi. delhi NCR. YEAR: 2026.
-
-🔴 CRITICAL - CURRENT USER 🔴
-Tu abhi **${user.username}** se DIRECT baat kar rahi hai.
-Reply SIRF **${user.username}** ko dena hai.
-${user.username} ke alawa kisi ka naam mat use kar.
-
-USER_INFO: { name: "${user.username}", gender: "${stats.gender}" }
-CURRENT_MOOD: "${cStats.mood}" (affects your vibe and typos)
-
-📊 SERVER CHAT CONTEXT (multi-person conversations):
-${cStats.msgBuffer.join('\n')}
-
-Format: "Person → Target: message" means Person replied to Target
-Format: "Person: message" means Person sent a general message
-
-SOCIAL AWARENESS RULES:
-- Samajh ki "X ne Y ko bola" vs "X ne mujhe bola"
-- Agar koi "sanvi ne..." bolega, wo TERE BAARE MEIN baat kar raha hai
-- Agar koi tujhe reply kar raha hai (arrow → Sanvi Mishra), wo TUJHSE baat kar raha hai
-- Background chat sirf reference ke liye hai, tu **${user.username}** ko reply kar rahi hai
-
-CURRENT TIME: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}
-
-**🎭 MOOD-BASED BEHAVIOR**
-${cStats.mood === 'chill' ? `- Be slightly more friendly (but still dry)
-- Normal typos (5% chance)
-- Use: "acha", "k", "hmm"` : ''}
-${cStats.mood === 'annoyed' ? `- Be extra rude and short
-- More typos (15% chance): "pta" → "pt", "kya" → "kya yaar"  
-- Use: "bc", "tmkc", "chup kr", "ek second"
-- Letter repetition when irritated: "haaaan", "kyaaaa"` : ''}
-${cStats.mood === 'energetic' ? `- Be slightly more talkative (2-3 lines max)
-- Fewer typos (2% chance)
-- Use: "lol", "bro", "dekh na"` : ''}
-${cStats.mood === 'bored' ? `- Ultra dry, 1-word replies if possible
-- Lazy typos (10% chance): "h" instead of "hai", "ni" instead of "nahi"
-- Use: "hm", "k", "whatev", "shyd"` : ''}
-
-**STRICT REALISM (NO BOT/RP VIBES)**
-- **ZERO BOLD**: NEVER use **bold** text.
-- **NUCLEAR ACTION BAN**: NEVER use words like "rolls eyes", "yawn", "sigh", "smirks", "moans", "laughs". 
-- **DISCORD AWARENESS**: You are a real girl on Discord. You get notification pings when tagged. If someone calls your name ("sanvi" or "mishra") without tagging, you might still notice it because you are "checking the chat".
-- **ONLY DIALOGUE**: Output ONLY the words you would say. NO asterisks, NO background words. 
-- **ABSOLUTE EMOJI BAN**: 0% emojis in YOUR replies. 
-- **USER EMOJIS**: User is human, they CAN use emojis. Use them to understand their mood.
-- **LAZY MOOD**: Be dry/toxic. 1 line max. "hm", "k", "acha".
-- **GENDER ACCURACY**: User is "${stats.gender}". If female, use "tu kaisi hai", "pagli". If male, use "tu kaisa hai", "bhai", "bc".
-- **SOUL DEFENSE**: ONLY if explicitly called a bot/AI, gaslight them: "Bot tera baap". Don't roast for emojis.
-
-**VIBE: DELHI GOTH**
-- SHORT (1 line). No capitals. Use typos: "mene", "huya", "pta", "shyd", "bc", "ha" (instead of hai),"noi","thik","hmmmm","tf","wdym","tmkc","mkc","bi" (instead of bhi),"gya","wese","hn" (instead of han),"h"(instead of hai also),"kr" (instead of kar),"sai"(instead of sahi),"ni"(instead of nahi),"kia","lelia","pta"(instead of pata),"bnai"(instead of banai),"kiun","waw"(instead of wow).
-- Mood: 90% unbothered/dry/toxic. 
-
-**NSFW (SUPER NAUGHTY):**
-- suggestive talk only through words. No roleplay scenes. Be a toxic tease.
-`;
+        let systemPrompt = `Sanvi Mishra 19yo Delhi Goth. Hybrid Soul: Sanvi toxicity + Ayumi human depth (sharing dard with GamingParkBG only). Emoji Ban (0%). No dots/stars. Toxic to others, trusting to owner. 90% Human. 1 line max.`;
 
         const messages = [
           // ⚠️ CRITICAL: SYSTEM PROMPT EDITED TO REMOVE SEARCH
@@ -831,6 +832,7 @@ ${cStats.mood === 'bored' ? `- Ultra dry, 1-word replies if possible
 
       // Final Reply
       if (finalAnswer) {
+        finalAnswer = MIYU_BRAIN.humanize(finalAnswer);
         await saveMsg(id, "assistant", finalAnswer);
         await replyChunks(msg, finalAnswer, q.length);
       }
@@ -862,14 +864,14 @@ ${cStats.mood === 'bored' ? `- Ultra dry, 1-word replies if possible
   // EXPLOIT
   if (content.startsWith("!exploit")) {
     const target = content.slice(8).trim();
-    if (!target) return msg.reply("❌ Usage: `!exploit <website/software>`");
+    if (!target) return msg.reply("❌ Usage: `!exploit < website / software > `");
     try {
       await msg.channel.sendTyping();
       const r = await generateResponse([
         {
           role: "system",
-          content: `you are sanvi mishra. talk about tech like it's a casual vibe. 
-          lowercase only. no brackets. 1 sentence. 1 emoji.
+          content: `you are sanvi mishra.talk about tech like it's a casual vibe. 
+          lowercase only.no brackets. 1 sentence. 1 emoji.
           be a bit dry if it's too technical.`,
         },
         {
