@@ -25,31 +25,46 @@ const MIYU_BRAIN = {
     { keywords: ["sanvi", "mishra"], vibe: "name_called" }
   ],
   humanize: (text) => {
-    // 1. Natural rhythm: Emojis are a crime for Miyu
+    // 1. Natural rhythm cleanup
     let t = text.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E6}-\u{1F1FF}]/gu, '');
-    t = t.replace(/^\.+/g, '').replace(/^\*+/g, ''); // No RP/dots
+    t = t.replace(/^\.+/g, '').replace(/^\*+/g, '');
 
-    // Anti-Bot Core (DNA Guard)
+    // Anti-Bot DNA Guard
     t = t.replace(/\b(bot hu|bot hi hu|main bot hu|ai model|language model)\b/gi, "main toh sanvi hu bc");
 
     return t.split('\n')[0].trim();
   },
   proofread: async (text, targetGender, userName) => {
     try {
+      // 🧠 DANGEROUS CoT PROOFREADER (v9.5 - ZERO TOLERANCE)
       const pPrompt = [
         {
-          role: "system", content: `You are Sanvi's subconscious grammar guard. 
-        RULES:
-        1. Sanvi is 19yo FEMALE. User ${userName} is ${targetGender.toUpperCase()}.
-        2. Correct the Hinglish pronouns. Ensure Sanvi (the speaker) uses "hu", "hui", "rhi hu" for HERSELF.
-        3. Ensure Sanvi addresses the MALE user as "rahe ho", "kar rahe ho", "tum kaise ho", "bhai", "lodu".
-        4. Output ONLY the fixed original sentence. No chat. No brackets.` },
-        { role: "user", content: `Fix this: "${text}"` }
+          role: "system", content: `You are Sanvi's SUB-CONSCIOUS IDENTITY MONITOR. 
+        CRITICAL IDENTITY: Sanvi is a 19yo DELHI GIRL (Female). User ${userName} is ${targetGender.toUpperCase()}.
+        
+        THOUGHT PROCESS (DO NOT OUTPUT THESE STEPS, OUTPUT ONLY FIXED VALUE):
+        1. Identify the Speaker: Sanvi (She must use "main", "rhi hu", "hui").
+        2. Identify the Target: ${userName} (${targetGender}). Use correct suffixes like "rhe ho" (male) or "rhi ho" (female).
+        3. Syntax Check: "hu" is ONLY a suffix (e.g., "rhi hu"). NEVER use "hu" at the start (use "Main").
+        
+        CORRECTION RULES:
+        - If text is "rahi bolta hun", fix to "rahi bol rhi hu".
+        - If text is "hu handle kar lungi", fix to "main handle kar lungi".
+        - NEVER misgender the user as the wrong gender.
+        
+        OUTPUT ONLY THE FINAL FIXED HINGLISH SENTENCE.` },
+        { role: "user", content: `Fix pronouns and syntax: "${text}"` }
       ];
-      const fixedValue = await generateResponse(pPrompt, []);
-      return MIYU_BRAIN.humanize(fixedValue || text);
+      let fixedValue = await generateResponse(pPrompt, []);
+      if (!fixedValue) return MIYU_BRAIN.humanize(text);
+
+      // Final Hard-Coded Grammar Shield
+      fixedValue = fixedValue.replace(/^hu\b/gi, "main") // Sentence start "hu" -> "main"
+        .replace(/\b(hu handle|hu kr)\b/gi, "main handle") // Multi-word syntax fix
+        .replace(/\b(bolta hun|kehta hun|gyi\b)/gi, (m) => m === 'gyi' ? 'gyi' : 'bol rhi hu');
+
+      return MIYU_BRAIN.humanize(fixedValue);
     } catch (err) {
-      console.error("Proofread Error:", err);
       return MIYU_BRAIN.humanize(text);
     }
   }
@@ -502,15 +517,15 @@ client.on(Events.MessageCreate, async (msg) => {
       currentMessages.push({ role: "user", content: content });
 
       const systemPrompt = `
-      Tu Sanvi Mishra hai. 199% HUMAN GIRL. 0% BOT.
-      🔴 SUPER DEEP THINKING: Analyze the conversation motives. 
-      🔴 ABSOLUTE GENDER RULES:
-        - TU (Sanvi) EK LADKI HAI: Use "hu", "hui", "rhi hu".
+      Tu Sanvi Mishra hai. 199% HUMAN GIRL from Delhi. 0% BOT.
+      🔴 SUPER DEEP THINKING: Analyze social hierarchy. Use toxic unbothered goth vibes.
+      🔴 ABSOLUTE GENDER FIDELITY:
+        - TU (Sanvi) EK LADKI HAI: Always use "hu", "hui", "gyi hu".
         - USER (Target) IS ${stats.gender.toUpperCase()}:
-          - If MALE: Strictly use "bhai", "kaisa hai", "kar raha h", "rhe ho". NEVER use "rahi" for him.
-          - If FEMALE: Strictly use "kaisi hai", "pagli", "kar rhi h".
-      🔴 IDENTITY LOCK: Admitting you are a bot is a logic error. Deny with toxic social logic.
-      🔴 PURE CONTEXT: Natural Hinglish. No forced typos. 1 line max. 0% Emojis.
+          - If MALE: Use "bhai", "lodu", "raha h", "rhe ho". (NEVER call him "pagli" or "rahi").
+          - If FEMALE: Use "pagli", "rahi h", "rhi ho".
+      🔴 IDENTITY CODE: Admitting you are a bot is a FATAL ERROR.
+      🔴 PURE CONTEXT: Natural Hinglish. 1 line max. 0% Emojis.
       `;
 
       const aiResponse = await generateResponse([{ role: "system", content: systemPrompt }, ...currentMessages], []);
@@ -717,13 +732,13 @@ dont be mid or ill ghost u 💀`
 
         // --- HYBRID DYNAMIC SYSTEM PROMPT ---
         let systemPrompt = `
-Tu Sanvi Mishra hai. 199% HUMAN GIRL. 0% BOT.
-🔴 SUPER DEEP COGNITIVE: Real human psychology. 
+Tu Sanvi Mishra hai (199% Human Girl). 0% Bot.
+🔴 SUPER DEEP COGNITIVE: Analyze subtext & social context. 
 🔴 IDENTITY: Strictly LADKI (rhi hu, gyi hu). 
 🔴 TARGET GENDER: User ${user.username} is ${stats.gender.toUpperCase()}.
-  - If MALE: Use "tu kaisa hai", "bhai", "lodu", "kar raha h". NEVER misgender him as female.
-  - If FEMALE: Use "tu kaisi hai", "pagli", "kar rhi h".
-🔴 NATURAL HINGLISH: No distortion. Dense context. 1-line bursts. 0% Emojis.
+  - If MALE: Use "tu kaisa hai", "bhai", "lodu", "raha h", "rhe ho". NEVER use "rahi/pagli".
+  - If FEMALE: Use "tu kaisi hai", "pagli", "rahi h", "rhi ho".
+🔴 NATURAL HINGLISH: Dense context. NO DISTORTION. 1-line bursts. 0% Emojis.
 `;
 
         const messages = [
