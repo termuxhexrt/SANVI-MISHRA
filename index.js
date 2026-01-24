@@ -24,36 +24,34 @@ const MIYU_BRAIN = {
     { keywords: ["mar gya", "delete", "reset", "problem"], vibe: "doom" },
     { keywords: ["sanvi", "mishra"], vibe: "name_called" }
   ],
-  humanize: (text, targetGender = 'unknown') => {
-    // 1. Natural rhythm cleanup
+  humanize: (text) => {
+    // 1. Natural rhythm: Emojis are a crime for Miyu
     let t = text.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E6}-\u{1F1FF}]/gu, '');
-    t = t.replace(/^\.+/g, '').replace(/^\*+/g, '');
+    t = t.replace(/^\.+/g, '').replace(/^\*+/g, ''); // No RP/dots
 
-    // 2. 🎯 TARGET GENDER LOCK (Addressing the User)
-    // Run this BEFORE DNA guard so 'rahi h' for males gets converted to 'rahe h' first
-    if (targetGender === 'male') {
-      t = t.replace(/\b(rahi ho|rhi ho|karogi|karti ho|ho rahi|kaisi hai|pagli|rhi h|rahi h|bol rhi|kar rhi|rhi)\b/gi, (m) => {
-        const d = {
-          "rahi ho": "rahe ho", "rhi ho": "rhe ho", "karogi": "karoge",
-          "karti ho": "karte ho", "ho rahi": "ho rahe", "kaisi hai": "kaisa hai", "pagli": "lodu",
-          "rhi h": "rhe h", "rahi h": "rahe h", "bol rhi": "bol rhe", "kar rhi": "kar rhe", "rhi": "rhe"
-        };
-        return d[m.toLowerCase()] || m;
-      });
+    // Anti-Bot Core (DNA Guard)
+    t = t.replace(/\b(bot hu|bot hi hu|main bot hu|ai model|language model)\b/gi, "main toh sanvi hu bc");
+
+    return t.split('\n')[0].trim();
+  },
+  proofread: async (text, targetGender, userName) => {
+    try {
+      const pPrompt = [
+        {
+          role: "system", content: `You are Sanvi's subconscious grammar guard. 
+        RULES:
+        1. Sanvi is 19yo FEMALE. User ${userName} is ${targetGender.toUpperCase()}.
+        2. Correct the Hinglish pronouns. Ensure Sanvi (the speaker) uses "hu", "hui", "rhi hu" for HERSELF.
+        3. Ensure Sanvi addresses the MALE user as "rahe ho", "kar rahe ho", "tum kaise ho", "bhai", "lodu".
+        4. Output ONLY the fixed original sentence. No chat. No brackets.` },
+        { role: "user", content: `Fix this: "${text}"` }
+      ];
+      const fixedValue = await generateResponse(pPrompt, []);
+      return MIYU_BRAIN.humanize(fixedValue || text);
+    } catch (err) {
+      console.error("Proofread Error:", err);
+      return MIYU_BRAIN.humanize(text);
     }
-
-    // 3. 🌸 SELF-IDENTITY DNA (Ensuring Sanvi stays a Girl)
-    // Only convert remaining masculine suffixes to feminine (Sanvi speaking about herself)
-    // Matches 'raha' but NOT 'rahe' (which was set for the male user above)
-    t = t.replace(/\b(raha|rha|gya|hua|huwa)\b/gi, (m) => {
-      const map = { "raha": "rahi", "rha": "rhi", "gya": "gyi", "hua": "hui", "huwa": "hui" };
-      return map[m.toLowerCase()] || m;
-    });
-
-    // 4. Cognitive Guard: Anti-Bot Confession
-    t = t.split('\n')[0].replace(/\b(bot hu|bot hi hu|main bot hu|ai model|language model)\b/gi, "main toh sanvi hu bc");
-
-    return t.trim();
   }
 };
 
@@ -517,7 +515,7 @@ client.on(Events.MessageCreate, async (msg) => {
 
       const aiResponse = await generateResponse([{ role: "system", content: systemPrompt }, ...currentMessages], []);
       if (aiResponse) {
-        let finalReply = MIYU_BRAIN.humanize(aiResponse, stats.gender);
+        let finalReply = await MIYU_BRAIN.proofread(aiResponse, stats.gender, user.username);
         await replyChunks(msg, finalReply, content.length);
         await saveMsg(id, "assistant", finalReply);
       }
@@ -775,7 +773,7 @@ Tu Sanvi Mishra hai. 199% HUMAN GIRL. 0% BOT.
 
       // Final Reply
       if (finalAnswer) {
-        finalAnswer = MIYU_BRAIN.humanize(finalAnswer, stats.gender);
+        finalAnswer = await MIYU_BRAIN.proofread(finalAnswer, stats.gender, user.username);
         await saveMsg(id, "assistant", finalAnswer);
         await replyChunks(msg, finalAnswer, q.length);
       }
@@ -1012,19 +1010,11 @@ function logStatus(message) {
 global.sanviLearnings = "just woke up, feeling cute and ready to learn. ✨";
 
 const WIKI_TOPICS = [
-  'Generation_Z', 'Instagram', 'Snapchat', 'Internet_slang', 'Fast_fashion',
-  'Selfie', 'Friendship', 'Romance_novel', 'Makeup', 'Skincare',
-  'K-pop', 'Streetwear', 'Anime', 'Discord_(software)', 'Emoji',
-  'Coffee', 'Bubble_tea', 'Vlog', 'Tiktok', 'Y2K_fashion',
-  'Astrology', 'Horoscope', 'Taylor_Swift', 'Netflix', 'Binge-watching',
-  'Street_food', 'Travel_vlog', 'Relationship_anarchy', 'Dating_app', 'Ghosting_(behavior)',
-  'Existential_crisis', 'Surrealism', 'Chaos_theory', 'Dark_humor', 'Vaporwave',
-  'Liminal_space', 'Main_character_syndrome', 'Love_bombing', 'Gaslighting', 'Micro-cheating',
-  'Psychological_manipulation', 'Deep_web', 'Urban_exploration', 'Conspiracy_theory', 'Mandela_Effect',
-  'Simulation_hypothesis', 'Lucid_dream', 'Astral_projection', 'Tantra', 'Subconscious_mind',
-  'Gothic_fashion', 'Existentialism', 'Nihilism', 'Horror_film', 'Death', 'Grunge',
-  'Alternative_rock', 'Tim_Burton', 'Wednesday_Addams', 'Corpse_Bride', 'Emo',
-  'Black_metal', 'Goth_subculture', 'Dark_academia', 'Vampire', 'Cemetery'
+  'Relationship_anarchy', 'Love_bombing', 'Gaslighting', 'Psychological_manipulation',
+  'Emotional_intelligence', 'Body_language', 'Skincare', 'Fast_fashion', 'Cosmetology',
+  'Interpersonal_relationship', 'Social_media_use_and_mental_health', 'Aesthetic_(social_media)',
+  'Gen_Z_slang', 'Delhi_Street_Food', 'Gothic_fashion', 'Nihilism', 'Sarcasm',
+  'Attachment_theory', 'Dark_triad', 'Red_pill_and_blue_pill', 'Ghosting_(behavior)', 'Breadcrumbing'
 ];
 
 async function updateMiyuLearnings() {
