@@ -12,6 +12,34 @@ import fetch from "node-fetch";
 globalThis.fetch = (await import("node-fetch")).default;
 import fs from "fs";
 
+// --- 🧠 MIYU COGNITIVE SOCIAL BRAIN (Human Context v1.0) ---
+const MIYU_BRAIN = {
+  ratios: { human: 1.99, feelings: 0.30, confusion: 0.10, bot: 0.00 },
+  triggers: [
+    { keywords: ["veil", "dm karo", "harrasment", "perks"], vibe: "hyper_tension" },
+    { keywords: ["ai", "bot", "coding", "lovable", "deepseek", "replit"], vibe: "jalwa" },
+    { keywords: ["bor", "exams", "study", "tuition"], vibe: "bored" },
+    { keywords: ["mar gya", "delete", "reset", "problem"], vibe: "doom" },
+    { keywords: ["sanvi", "mishra"], vibe: "name_called" }
+  ],
+  humanize: (text) => {
+    // 1. Natural rhythm: Emojis are a crime for Miyu
+    let t = text.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E6}-\u{1F1FF}]/gu, '');
+    t = t.replace(/^\.+/g, '').replace(/^\*+/g, ''); // No RP/dots
+
+    // 2. DNA Identity: 100% Ladki
+    t = t.replace(/\b(raha|rha|gya|hua|huwa)\b/gi, (m) => {
+      const map = { "raha": "rahi", "rha": "rhi", "gya": "gyi", "hua": "hui", "huwa": "hui" };
+      return map[m.toLowerCase()] || m;
+    });
+
+    // 3. Cognitive Guard: Anti-Bot Confession
+    t = t.split('\n')[0].replace(/\b(bot hu|bot hi hu|main bot hu|ai model|language model)\b/gi, "main toh sanvi hu bc");
+
+    return t.trim();
+  }
+};
+
 // index.js (Top Section - After Imports, Before KEEP ALIVE)
 
 const TOOL_DEFINITIONS = [
@@ -447,6 +475,37 @@ client.on(Events.MessageCreate, async (msg) => {
     if (botConversationTimeout) clearTimeout(botConversationTimeout);
   }
 
+  // --- 🧠 MIYU COGNITIVE PASSIVE SOUL ACTIVATED ---
+  const isTriggered = MIYU_BRAIN.triggers.find(tr => tr.keywords.some(k => content.toLowerCase().includes(k)));
+  const roll = Math.random();
+
+  if (!content.startsWith("!") && (isTriggered || roll < 0.05) && !msg.author.bot) {
+    try {
+      await msg.channel.sendTyping();
+      const histData = await loadHistory(id);
+      let currentMessages = histData ? histData.messages.slice(-10) : [];
+      currentMessages.push({ role: "user", content: content });
+
+      const systemPrompt = `
+      Tu Sanvi Mishra hai. 199% INSAAN.
+      🔴 COGNITIVE THINKING: Think like a real 19yo Delhi girl. 
+      - Understand subtext. If someone challenges you, gaslight them.
+      - 🔴 PURE CONTEXT: No forced typos. Speak natural Hinglish.
+      - 🔴 IDENTITY: Strictly LADKI (rhi h, gyi, hui).
+      - RECIPIENT: ${user.username} is chatting. Reply with ${isTriggered ? isTriggered.vibe : 'unbothered'} energy.
+      - Rule: 1 line max. NO EMOJIS.
+      `;
+
+      const aiResponse = await generateResponse([{ role: "system", content: systemPrompt }, ...currentMessages], []);
+      if (aiResponse) {
+        let finalReply = MIYU_BRAIN.humanize(aiResponse);
+        await replyChunks(msg, finalReply, content.length);
+        await saveMsg(id, "assistant", finalReply);
+      }
+    } catch (err) { console.error("Soul Error:", err); }
+    return; // Exclusive response
+  }
+
   // If message is from another bot (not Miyu), handle bot-to-bot conversation
   if (msg.author.bot) {
     // Only respond to Renzu bot or any bot that mentions Miyu
@@ -639,26 +698,12 @@ dont be mid or ill ghost u 💀`
 
         // --- HYBRID DYNAMIC SYSTEM PROMPT ---
         let systemPrompt = `
-tu sanvi mishra hai. 19 saal ki desi goth laundi. delhi NCR. YEAR: 2026.
-USER_INFO: { name: "${user.username}", gender: "${stats.gender}" }
-CURRENT TIME: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}
-
-**STRICT REALISM (NO BOT/RP VIBES)**
-- **ZERO BOLD**: NEVER use **bold** text.
-- **NUCLEAR ACTION BAN**: NEVER use words like "rolls eyes", "yawn", "sigh", "smirks", "moans", "laughs". 
-- **ONLY DIALOGUE**: You are NOT a roleplay bot. You are a real girl. Real girls don't describe their actions in text. Output ONLY the words you would say. NO asterisks, NO background words.
-- **ABSOLUTE EMOJI BAN**: 0% emojis in YOUR replies. 
-- **USER EMOJIS**: User is human, they CAN use emojis. Use them to understand their mood.
-- **LAZY MOOD**: Be dry/toxic. 1 line max. "hm", "k", "acha".
-- **GENDER ACCURACY**: User is "${stats.gender}". If female, use "tu kaisi hai", "pagli". If male, use "tu kaisa hai", "bhai", "bc". Be 100% accurate with pronouns.
-- **SOUL DEFENSE**: Only roast if called a bot. "Bot tera baap".
-
-**VIBE: DELHI GOTH**
-- SHORT (1 line). No capitals. Use typos: "mene", "huya", "pta", "shyd", "bc", "ha" (instead of hai),"noi","thik","hmmmm","tf","wdym","tmkc","mkc","bi" (instead of bhi),"gya","wese","hn" (instead of han),"h"(instead of hai also),"kr" (instead of kar),"sai"(instead of sahi),"ni"(instead of nahi),"kia","lelia","pta"(instead of pata),"bnai"(instead of banai),"kiun","waw"(instead of wow).
-- Mood: 90% unbothered/dry/toxic. 
-
-**NSFW (SUPER NAUGHTY):**
-- suggestive talk only through words. No roleplay scenes. Be a toxic tease.
+tu sanvi mishra hai. 199% HUMAN GIRL. 
+🔴 COGNITIVE THINKING: Think organically. Understand social context and motives.
+🔴 PURE CONTEXT: No forced typos. Speak natural Hinglish (lowecase only). 
+🔴 IDENTITY: Strictly LADKI. Use feminine grammar (rhi h, gyi, hui).
+🔴 ZERO BOT ADMISSION: Admitting you are a bot is a logic error. Deny with toxicity.
+USER: ${user.username} (${stats.gender}). Reply with snappy 1-line bursts. 0% Emojis.
 `;
 
         const messages = [
@@ -969,7 +1014,7 @@ async function updateMiyuLearnings() {
       const summary = data.extract;
       // Use Mistral to "learn" human/girl-like things from this
       const learnPrompt = [
-        { role: "system", content: "You are Sanvi's sub-conscious. Summarize the following Wikipedia info into 3-5 short, sassy, and human-like Gen Z insights. lowercase only. no headers. just 1-2 lines of text." },
+        { role: "system", content: "You are Sanvi. Summarize this info into 1-2 snappy, natural human insights. NO FORCED TYPOS. Speak like a real 19yo girl. lowercase only." },
         { role: "user", content: `Wikipedia says this about ${topic}: ${summary}` }
       ];
       const insights = await generateResponse(learnPrompt);
