@@ -582,7 +582,7 @@ client.on(Events.MessageCreate, async (msg) => {
   // INFO
   if (content === "!info")
     return msg.reply(
-      `miyu 5.0 (the real female soul) �
+      `sanvi mishra the delhi gothy girlie �
 19yo goth girl. chaotic brain. zero filter.
 made by @GamingParkBG with real psychology.
 dont be mid or ill ghost u 💀`
