@@ -7,6 +7,7 @@ import "dotenv/config";
 import express from "express";
 import { Client, GatewayIntentBits, Events } from "discord.js";
 import { Mistral } from "@mistralai/mistralai";
+import { GoogleGenerativeAI, HarmCategory, HarmBlockThreshold } from "@google/generative-ai";
 import { Pool } from "pg";
 import fetch from "node-fetch";
 globalThis.fetch = (await import("node-fetch")).default;
@@ -331,7 +332,7 @@ async function replyChunks(msg, text, incomingLength = 0) {
 
   // Typing indicator
   await msg.channel.sendTyping();
-  
+
   // Human typing speed (fast, erratic)
   const baseSpeed = 20 + Math.random() * 35; // 20-55ms per char
   const typingDelay = Math.min(text.length * baseSpeed, 1800);
@@ -340,29 +341,29 @@ async function replyChunks(msg, text, incomingLength = 0) {
   // STRICT 1 LINE ENFORCEMENT
   // Split by newlines, take first line only
   let reply = text.split(/[\n\r]+/)[0].trim();
-  
+
   // Remove any emojis if somehow present
   reply = reply.replace(/[\u{1F600}-\u{1F64F}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '');
-  
+
   // Strict word limit (max 15 words)
   const words = reply.split(/\s+/);
   if (words.length > 15) {
     reply = words.slice(0, 15).join(' ');
   }
-  
+
   // Max 120 chars
   if (reply.length > 120) {
     reply = reply.substring(0, 120);
   }
-  
+
   // Remove trailing punctuation for abruptness (optional, 50% chance)
   if (Math.random() > 0.5 && /[.!?]$/.test(reply)) {
     reply = reply.slice(0, -1);
   }
-  
+
   // Send the message
   await msg.reply(reply);
-  
+
   // Occasional fake typo fix (8% chance) - makes it look human
   if (Math.random() > 0.92 && reply.length > 8) {
     await new Promise(r => setTimeout(r, 600 + Math.random() * 800));
@@ -375,10 +376,85 @@ async function replyChunks(msg, text, incomingLength = 0) {
 
 
 // ------------------ MISTRAL AI RESPONSE GENERATOR ------------------
-export async function generateResponse(messages, tools = []) { // <--- tools argument kept
+// ------------------ HYBRID BRAIN (GEMINI 2.5 + MISTRAL FALLBACK) ------------------
+export async function generateResponse(messages, tools = []) {
+  // 1. TOOL PATH: If tools are required, use Mistral (Better tool calling stability for now)
+  if (tools && tools.length > 0) {
+    // console.log("⚙️ Tools active: Routing to Mistral...");
+    return await generateMistralResponse(messages, tools);
+  }
+
+  // 2. CHAT PATH: Try Gemini 2.5 Flash Lite (The "Human" Brain) first
+  try {
+    const geminiKey = process.env.GEMINI_API_KEY;
+    if (!geminiKey) throw new Error("Gemini Key Missing");
+
+    const genAI = new GoogleGenerativeAI(geminiKey);
+    const model = genAI.getGenerativeModel({
+      model: "gemini-2.5-flash-lite",
+      safetySettings: [
+        { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+        { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+        { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+        { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+      ]
+    });
+
+    // Convert OpenAI-style 'messages' to Gemini content format
+    // Note: Gemini doesn't support 'system' role in `generateContent` history directly in the same way, 
+    // it prefers systemInstruction. We need to extract the system prompt.
+    let systemInstruction = "You are Sanvi.";
+    const geminiHistory = [];
+    let lastUserMsg = "";
+
+    for (const m of messages) {
+      if (m.role === 'system') {
+        systemInstruction = m.content;
+      } else if (m.role === 'user') {
+        lastUserMsg = m.content;
+        geminiHistory.push({ role: 'user', parts: [{ text: m.content }] });
+      } else if (m.role === 'assistant') {
+        geminiHistory.push({ role: 'model', parts: [{ text: m.content }] });
+      }
+    }
+
+    // Remove the last user message from history as it goes into generateContent(msg)
+    // Actually, pop() works if we built the history sequentially.
+    // However, the `messages` array from discord logic has the last user message at the end.
+    // Gemini's chat.sendMessage(msg) takes the *new* message. 
+    // So we need to init chat with history *excluding* the last message.
+
+    const historyForChat = geminiHistory.slice(0, -1);
+    const lastMsgObj = geminiHistory[geminiHistory.length - 1];
+    const finalPrompt = lastMsgObj ? lastMsgObj.parts[0].text : "";
+
+    const chatSession = model.startChat({
+      history: historyForChat,
+      systemInstruction: systemInstruction,
+      generationConfig: {
+        maxOutputTokens: 200, // Keep it snappy
+        temperature: 1.3,     // High creativity for "Sassy" vibe
+      }
+    });
+
+    const result = await chatSession.sendMessage(finalPrompt);
+    const responseText = result.response.text();
+
+    // console.log("✨ Gemini 2.5 SCORING:", responseText.length);
+    return responseText;
+
+  } catch (err) {
+    console.error("⚠️ Gemini Failed (Fallback to Mistral):", err.message.split('\n')[0]);
+    // 3. FALLBACK PATH: Route to Mistral (The "Galiyan/Uncensored" Brain)
+    return await generateMistralResponse(messages, tools);
+  }
+}
+
+// ------------------ MISTRAL AI RESPONSE GENERATOR (LEGACY/FALLBACK) ------------------
+async function generateMistralResponse(messages, tools = []) {
   const retries = 3;
   const retryDelay = 1000;
-  const model = "mistral-large-latest"; // Only one model now (Mistral API removes 'mistralai/')
+  const model = "mistral-large-latest";
 
   function logStatus(model, status, attempt, ms, reason = "") {
     const pad = (s, n) => s.toString().padEnd(n);
@@ -387,9 +463,9 @@ export async function generateResponse(messages, tools = []) { // <--- tools arg
     );
   }
 
-  console.log("───────────────────────────────────────────────────────────────────────────────");
-  console.log("| Model Name                               | Status    | Attempt | Time     | Reason");
-  console.log("───────────────────────────────────────────────────────────────────────────────");
+  // console.log("───────────────────────────────────────────────────────────────────────────────");
+  // console.log("| Model Name                               | Status    | Attempt | Time     | Reason");
+  // console.log("───────────────────────────────────────────────────────────────────────────────");
 
   for (let i = 1; i <= retries; i++) {
     const t0 = Date.now();
@@ -401,14 +477,12 @@ export async function generateResponse(messages, tools = []) { // <--- tools arg
       };
 
       // Build the base payload
-  const payload = {
+      const payload = {
         model: model,
         messages,
-        temperature: 1.35, // High randomness for unpredictable responses
-        max_tokens: 60,    // Force short responses (roughly 15 words)
-        top_p: 0.92,
-        frequency_penalty: 0.8, // Prevent repetitive gaalis
-        presence_penalty: 0.6,  // Encourage new topics
+        temperature: 1.2,
+        max_tokens: 1024,
+        top_p: 0.95,
       };
 
       // Conditionally add tools if they are provided (only for Mistral)
@@ -454,7 +528,7 @@ export async function generateResponse(messages, tools = []) { // <--- tools arg
       if (i < retries) await new Promise((r) => setTimeout(r, retryDelay));
     }
   }
-  console.log("───────────────────────────────────────────────────────────────────────────────");
+  // console.log("───────────────────────────────────────────────────────────────────────────────");
   throw new Error(`❌ Model mistralai/${model} failed all attempts.`);
 }
 
@@ -669,7 +743,7 @@ dont be mid or ill ghost u 💀`
       // Start the Conversation/Tool-Use Loop (Max 5 iterations to prevent infinite loop)
       for (let i = 0; i < 5; i++) {
 
-                                              // --- SANVI MISHRA SYSTEM PROMPT (GRADIENT ESCALATION EDITION) ---
+        // --- SANVI MISHRA SYSTEM PROMPT (GRADIENT ESCALATION EDITION) ---
         let systemPrompt = `
 tu sanvi mishra hai. 19 saal. delhi NCR. goth aesthetic. REAL LADKI. confident, thotty but classy. YEAR: 2026.
 USER: "${user.username}" | USER_GENDER: "${stats.gender}" | TIME: ${new Date().toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: false })}
@@ -1177,8 +1251,8 @@ Kabhi bhi Level 1 se Level 5 mat jump kar. Dheere dheere badh.
 1 line max in all levels. No emojis. Lowercase only.
 `;
 
-// Temperature bhi badal de 1.4 kar de taaki zyada unpredictable ho
-// generateResponse call mein: temperature: 1.4
+        // Temperature bhi badal de 1.4 kar de taaki zyada unpredictable ho
+        // generateResponse call mein: temperature: 1.4
 
         const messages = [
           // ⚠️ CRITICAL: SYSTEM PROMPT EDITED TO REMOVE SEARCH
