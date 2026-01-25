@@ -1530,10 +1530,7 @@ client.login(token).catch((e) => {
 });
 
 // ------------------ STABILITY LOGGER ------------------
-function logStatus(message) {
-  const time = new Date().toLocaleTimeString("en-IN", { hour12: false });
-  console.log(`[${time}] ⚙️ ${message}`);
-}
+// ------------------ STABILITY LOGGER (Handled by Global logStatus) ------------------
 
 // ------------------ SANVI'S WIKIPEDIA LEARNING SYSTEM (REAL-TIME VIBE) ------------------
 global.sanviLearnings = "just woke up, feeling cute and ready to learn. ✨";
@@ -1570,7 +1567,9 @@ async function updateMiyuLearnings() {
       const insights = await generateResponse(learnPrompt);
       if (insights && typeof insights === 'string') {
         global.sanviLearnings = insights;
-        logStatus(`Sanvi learned about ${topic}: ${insights.slice(0, 50)}...`);
+        // Simplified direct logging for learning loop to avoid conflicts
+        const time = new Date().toLocaleTimeString("en-IN", { hour12: false });
+        console.log(`[${time}] ⚙️ Sanvi learned about ${topic}: ${insights.slice(0, 50)}...`);
       }
     }
   } catch (err) {
