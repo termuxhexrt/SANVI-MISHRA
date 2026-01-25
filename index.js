@@ -2786,7 +2786,7 @@ Teri line mein agar "hu", "hai", "raha", "ke", "hue" jaise words hain jo tera ac
 - **NO "ab kya hai"** (situation setup nahi)
 - **NO "jaane de"** (filmy phrase)
 - **YOU MUST COMPLETE YOUR SENTENCE**
-- 25 words max limit
+- 50 words max limit , but prefer 8-12 words , lowercase , no emojis
 
 **ABSOLUTE BAN - THESE WORDS = INSTANT FAIL:**
 1. "pakadti hu" / "pakad ke" = BANNED (tu pakad rahi hai, ye mat bata)
