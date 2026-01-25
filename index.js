@@ -1584,8 +1584,8 @@ async function updateMiyuLearnings() {
   }
 }
 
-// ✅ Start learning every 20 seconds (High-frequency soul update)
-setInterval(updateMiyuLearnings, 20000);
+// ✅ Start learning every 60 seconds (Optimized for Gemini Free Tier Quota)
+setInterval(updateMiyuLearnings, 60000);
 
 // ✅ Make sure code runs only when bot is ready
 client.once("ready", () => {
