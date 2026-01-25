@@ -383,8 +383,9 @@ export async function generateResponse(messages, tools = []) {
   const toxicKeywords = ["bc", "mc", "tmkc", "mkc", "c-", "lodu", "chut", "randi", "behen", "gaand", "porn", "sexy", "nude", "lund", "fuck", "bitch", "slut", "dick"];
   const isToxic = toxicKeywords.some(word => lastMsg.includes(word));
 
-  // If toxic or tools required, use Mistral directly to save Gemini quota
-  if (isToxic || (tools && tools.length > 0)) {
+  // If toxic, use Mistral directly to save Gemini quota. 
+  // (Removed tools.length check so Gemini handles !ask chat)
+  if (isToxic) {
     return await generateMistralResponse(messages, tools).then(cleanOutput);
   }
 
@@ -426,6 +427,11 @@ export async function generateResponse(messages, tools = []) {
     const result = await chatSession.sendMessage(finalPrompt);
     const responseText = result.response.text();
 
+    // Safety fallback if Gemini is empty or weird
+    if (!responseText || responseText.trim().length === 0) {
+      throw new Error("Empty Gemini response");
+    }
+
     logStatus(`google/gemini-2.5-flash-lite`, "✅ PASS", 1, Date.now() - t0);
     return cleanOutput(responseText);
 
@@ -440,8 +446,11 @@ function cleanOutput(text) {
   if (typeof text !== 'string') return text;
   return text
     .toLowerCase()              // 1. ENFORCE LOWERCASE
-    .replace(/\*\*/g, '')      // 2. REMOVE BOLDING
-    .replace(/[_*~]/g, '')     // 3. REMOVE OTHER MARKDOWN
+    .replace(/\[.*?\]/g, '')    // 2. KILL BRACKET ACTIONS [smirks]
+    .replace(/\(.*?\)/g, '')    // 3. KILL PAREN ACTIONS (rolls eyes)
+    .replace(/\*\*/g, '')      // 4. REMOVE BOLDING
+    .replace(/[_*~]/g, '')     // 5. REMOVE OTHER MARKDOWN
+    .replace(/\s+/g, ' ')      // 6. CLEAN DOUBLE SPACES
     .trim();
 }
 
