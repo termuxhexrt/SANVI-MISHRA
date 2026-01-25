@@ -378,13 +378,7 @@ async function replyChunks(msg, text, incomingLength = 0) {
 // ------------------ MISTRAL AI RESPONSE GENERATOR ------------------
 // ------------------ HYBRID BRAIN (GEMINI 2.5 + MISTRAL FALLBACK) ------------------
 export async function generateResponse(messages, tools = []) {
-  // 1. TOOL PATH: If tools are required, use Mistral (Better tool calling stability for now)
-  if (tools && tools.length > 0) {
-    // console.log("⚙️ Tools active: Routing to Mistral...");
-    return await generateMistralResponse(messages, tools);
-  }
-
-  // 2. CHAT PATH: Try Gemini 2.5 Flash Lite (The "Human" Brain) first
+  // 1. CHAT/PRIMARY PATH: Try Gemini 2.5 Flash Lite first
   const t0 = Date.now();
   try {
     const geminiKey = process.env.GEMINI_API_KEY;
