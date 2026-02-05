@@ -377,15 +377,66 @@ async function replyChunks(msg, text, incomingLength = 0) {
 // ------------------ MISTRAL AI RESPONSE GENERATOR ------------------
 // ------------------ HYBRID BRAIN (GEMINI 2.5 + MISTRAL FALLBACK) ------------------
 export async function generateResponse(messages, tools = []) {
-  // GROQ ONLY - Fast & Reliable (No Gemini, No OpenRouter)
+  // 1. EXTRACTION & KEYWORD ROUTING
+  const lastMsg = messages.filter(m => m.role === 'user').pop()?.content?.toLowerCase() || "";
+  const toxicKeywords = ["bc", "mc", "tmkc", "mkc", "c-", "lodu", "chut", "randi", "behen", "gaand", "porn", "sexy", "nude", "lund", "fuck", "bitch", "slut", "dick"];
+  const isToxic = toxicKeywords.some(word => lastMsg.includes(word));
+
+  // If toxic OR tools required, use Mistral directly
+  // (Gemini doesn't handle tool calling reliably, so Mistral is better for Search/Code)
+  if (isToxic || (tools && tools.length > 0)) {
+    return await generateMistralResponse(messages, tools).then(cleanOutput);
+  }
+
+  // 2. CHAT/PRIMARY PATH: Try Gemini 2.5 Flash Lite first
+  const t0 = Date.now();
   try {
-    // Groq doesn't support tools well, so we handle tool calls differently
-    // For now, just return text response
-    const response = await generateMistralResponse(messages, []);
-    return cleanOutput(response);
+    const geminiKey = process.env.GEMINI_API_KEY;
+    if (!geminiKey) throw new Error("Gemini Key Missing");
+
+    const genAI = new GoogleGenerativeAI(geminiKey);
+    const model = genAI.getGenerativeModel({
+      model: "gemini-2.5-flash",
+      safetySettings: [
+        { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+        { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
+        { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
+        { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
+      ]
+    });
+
+    let systemInstruction = "You are Sanvi.";
+    const geminiHistory = [];
+    for (const m of messages) {
+      if (m.role === 'system') systemInstruction = m.content;
+      else if (m.role === 'user') geminiHistory.push({ role: 'user', parts: [{ text: m.content }] });
+      else if (m.role === 'assistant') geminiHistory.push({ role: 'model', parts: [{ text: m.content }] });
+    }
+
+    const historyForChat = geminiHistory.slice(0, -1);
+    const lastMsgObj = geminiHistory[geminiHistory.length - 1];
+    const finalPrompt = lastMsgObj ? lastMsgObj.parts[0].text : "";
+
+    const chatSession = model.startChat({
+      history: historyForChat,
+      systemInstruction: { parts: [{ text: systemInstruction }], role: "system" },
+      generationConfig: { maxOutputTokens: 200, temperature: 1.25 }
+    });
+
+    const result = await chatSession.sendMessage(finalPrompt);
+    const responseText = result.response.text();
+
+    // Safety fallback if Gemini is empty or weird
+    if (!responseText || responseText.trim().length === 0) {
+      throw new Error("Empty Gemini response");
+    }
+
+    logStatus(`google/gemini-2.5-flash-lite`, "✅ PASS", 1, Date.now() - t0);
+    return cleanOutput(responseText);
+
   } catch (err) {
-    console.error("⚠️ Groq Failed:", err.message);
-    throw err;
+    console.error("⚠️ Gemini Failed (Fallback to Mistral):", err.message.split('\n')[0]);
+    return await generateMistralResponse(messages, tools).then(cleanOutput);
   }
 }
 
@@ -419,33 +470,37 @@ function logStatus(model, status, attempt, ms, reason = "") {
 // ------------------ MISTRAL AI RESPONSE GENERATOR (LEGACY/FALLBACK) ------------------
 async function generateMistralResponse(messages, tools = []) {
   const retries = 3;
-  const retryDelay = 2000;
+  const retryDelay = 1000;
+  const model = "mistral-large-latest";
 
-  // GROQ - FREE TIER (20 RPM, 500K tokens/day)
-  // Mixtral 8x7B - Fastest inference, good for roleplay
-  const model = "mixtral-8x7b-32768";
+  // console.log("───────────────────────────────────────────────────────────────────────────────");
+  // console.log("| Model Name                               | Status    | Attempt | Time     | Reason");
+  // console.log("───────────────────────────────────────────────────────────────────────────────");
 
   for (let i = 1; i <= retries; i++) {
     const t0 = Date.now();
     try {
-      const endpoint = "https://api.groq.com/openai/v1/chat/completions";
+      const endpoint = "https://api.mistral.ai/v1/chat/completions";
       const headers = {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${process.env.GROQ_KEY}`
+        Authorization: `Bearer ${process.env.MISTRAL_API_KEY}`,
       };
 
+      // Build the base payload
       const payload = {
         model: model,
         messages,
-        temperature: 1.3,
-        max_tokens: 2048,
+        temperature: 1.3,      // Thoda aur unpredictable
+        max_tokens: 2048,      // 2408 se kam kar de, warna context overflow ho sakta hai
         top_p: 0.95,
-        presence_penalty: 0.8,
-        frequency_penalty: 0.8
+        presence_penalty: 0.8, // Yeh IMPORTANT hai - repetition avoid karega
+        frequency_penalty: 0.8 // "Ja na" "chutiye" baar baar repeat nahi karegi
       };
-
-      // Note: Groq doesn't support tools, so we skip tool parameters
-      // If tools are needed, we'll handle it differently
+      // Conditionally add tools if they are provided (only for Mistral)
+      if (tools && tools.length > 0) {
+        payload.tools = tools;
+        payload.tool_choice = "auto"; // Assuming you want auto tool usage
+      }
 
       const res = await fetch(endpoint, {
         method: "POST",
@@ -454,34 +509,38 @@ async function generateMistralResponse(messages, tools = []) {
       });
 
       if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        if (res.status === 429) {
-          throw new Error("Rate limited - wait a minute");
-        }
-        throw new Error(errorData.error?.message || `HTTP ${res.status}`);
+        const errorText = await res.text();
+        throw new Error(`HTTP ${res.status} ${res.statusText}: ${errorText}`);
       }
 
       const data = await res.json();
       const message = data?.choices?.[0]?.message;
 
-      if (!message || !message.content) {
-        throw new Error("Empty response");
+      if (!message || (!message.content && !message.tool_calls)) {
+        throw new Error("Empty content or missing tool call in response");
       }
 
-      const ms = Date.now() - t0;
-      logStatus(`groq/${model}`, "✅ PASS", i, ms);
+      const ms = Math.abs(Date.now() - t0);
+      logStatus(`mistralai/${model}`, "✅ PASS", i, ms);
+
+      // Handle Tool Call vs. Content
+      if (message.tool_calls && message.tool_calls.length > 0) {
+        return {
+          content: message.content, // Tool call ke saath content bhi ho sakta hai
+          tool_call: message.tool_calls[0]
+        };
+      }
 
       return message.content;
 
     } catch (err) {
-      const ms = Date.now() - t0;
-      logStatus(`groq/${model}`, "❌ FAIL", i, ms, err.message);
-
-      if (i < retries) await new Promise(r => setTimeout(r, retryDelay * i));
+      const ms = Math.abs(Date.now() - t0);
+      logStatus(`mistralai/${model}`, "❌ FAIL", i, ms, err.message);
+      if (i < retries) await new Promise((r) => setTimeout(r, retryDelay));
     }
   }
-
-  throw new Error("❌ Groq failed all attempts. Check your API key or wait a minute.");
+  // console.log("───────────────────────────────────────────────────────────────────────────────");
+  throw new Error(`❌ Model mistralai/${model} failed all attempts.`);
 }
 
 
@@ -695,10 +754,10 @@ dont be mid or ill ghost u 💀`
       // Start the Conversation/Tool-Use Loop (Max 5 iterations to prevent infinite loop)
       for (let i = 0; i < 5; i++) {
 
-               // --- SANVI MISHRA SYSTEM PROMPT (15 MOODS - FIXED v5.1) ---
-// CRITICAL: Tool leakage + Meta commentary + System behavior = FIXED
+        // --- SANVI MISHRA SYSTEM PROMPT (15 MOODS - FIXED v5.1) ---
+        // CRITICAL: Tool leakage + Meta commentary + System behavior = FIXED
 
-let systemPrompt = `
+        let systemPrompt = `
 **ABSOLUTE ZERO TOLERANCE - BEHAVIOR LOCK:**
 - You NEVER output code, JSON, tool syntax, or API calls like "searchthewebprilis", "clearuserhistoryprilis", "generatethecode", etc. 
 - You NEVER act as a system, admin, police, or authority. NO "final action taken", "cyber cell", "complaint registered", "IP address traced", "location confirmed", "legal action", "server", "database", "report", "complaint".
@@ -2699,13 +2758,7 @@ Agar tere response mein "hu" (auxiliary verb for self-action) hai, toh galat hai
 
     } catch (err) {
       console.error("❌ !ask command error:", err);
-      if (err.message && err.message.includes("Rate limited")) {
-        await msg.reply("groq quota khatam ho gaya yaar... 1 min ruk ja 💀");
-      } else if (err.message && err.message.includes("API key")) {
-        await msg.reply("api key galat hai yaar... check kar 💀");
-      } else {
-        await msg.reply("system lag gaya... thodi der baad try kar cutie.");
-      }
+      await msg.reply("ek second... dimag hang ho gaya. thodi der baad bolna cutie.");
     }
     return;
   }
