@@ -377,11 +377,14 @@ async function replyChunks(msg, text, incomingLength = 0) {
 // ------------------ MISTRAL AI RESPONSE GENERATOR ------------------
 // ------------------ HYBRID BRAIN (GEMINI 2.5 + MISTRAL FALLBACK) ------------------
 export async function generateResponse(messages, tools = []) {
-  // DIRECT OPENROUTER - No Gemini, No Mistral official API
+  // GROQ ONLY - Fast & Reliable (No Gemini, No OpenRouter)
   try {
-    return await generateMistralResponse(messages, tools).then(cleanOutput);
+    // Groq doesn't support tools well, so we handle tool calls differently
+    // For now, just return text response
+    const response = await generateMistralResponse(messages, []);
+    return cleanOutput(response);
   } catch (err) {
-    console.error("⚠️ OpenRouter Failed:", err.message);
+    console.error("⚠️ Groq Failed:", err.message);
     throw err;
   }
 }
@@ -415,93 +418,70 @@ function logStatus(model, status, attempt, ms, reason = "") {
 
 // ------------------ MISTRAL AI RESPONSE GENERATOR (LEGACY/FALLBACK) ------------------
 async function generateMistralResponse(messages, tools = []) {
-  const retries = 2;
-  const retryDelay = 1000;
+  const retries = 3;
+  const retryDelay = 2000;
 
-  // FREE MODELS from OpenRouter - No cost, just rate limits
-  const freeModels = [
-    "huggingfaceh4/zephyr-7b-beta:free",
-    "mistralai/mistral-7b-instruct:free", 
-    "nousresearch/hermes-2-mixtral-8x7b-dpo:free",
-    "gryphe/mythomax-l2-13b:free"
-  ];
+  // GROQ - FREE TIER (20 RPM, 500K tokens/day)
+  // Mixtral 8x7B - Fastest inference, good for roleplay
+  const model = "mixtral-8x7b-32768";
 
-  // Try each free model
-  for (const model of freeModels) {
-    for (let i = 1; i <= retries; i++) {
-      const t0 = Date.now();
-      try {
-        const endpoint = "https://openrouter.ai/api/v1/chat/completions";
-        const headers = {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${process.env.OPENROUTER_KEY}`,
-          "HTTP-Referer": "https://discord.com",
-          "X-Title": "Sanvi Mishra Bot"
-        };
+  for (let i = 1; i <= retries; i++) {
+    const t0 = Date.now();
+    try {
+      const endpoint = "https://api.groq.com/openai/v1/chat/completions";
+      const headers = {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${process.env.GROQ_KEY}`
+      };
 
-        const payload = {
-          model: model,
-          messages,
-          temperature: 1.3,
-          max_tokens: 2048,
-          top_p: 0.95,
-          presence_penalty: 0.8,
-          frequency_penalty: 0.8
-        };
+      const payload = {
+        model: model,
+        messages,
+        temperature: 1.3,
+        max_tokens: 2048,
+        top_p: 0.95,
+        presence_penalty: 0.8,
+        frequency_penalty: 0.8
+      };
 
-        if (tools && tools.length > 0) {
-          payload.tools = tools;
-          payload.tool_choice = "auto";
+      // Note: Groq doesn't support tools, so we skip tool parameters
+      // If tools are needed, we'll handle it differently
+
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        if (res.status === 429) {
+          throw new Error("Rate limited - wait a minute");
         }
-
-        const res = await fetch(endpoint, {
-          method: "POST",
-          headers,
-          body: JSON.stringify(payload),
-        });
-
-        if (!res.ok) {
-          const errorText = await res.text();
-          if (res.status === 429 || errorText.includes("rate limit")) {
-            console.log(`⚠️ ${model} rate limited, trying next model...`);
-            break;
-          }
-          throw new Error(`HTTP ${res.status}: ${errorText}`);
-        }
-
-        const data = await res.json();
-        const message = data?.choices?.[0]?.message;
-
-        if (!message || (!message.content && !message.tool_calls)) {
-          throw new Error("Empty content");
-        }
-
-        const ms = Date.now() - t0;
-        logStatus(`openrouter/${model.split(':')[0]}`, "✅ PASS", i, ms);
-
-        if (message.tool_calls && message.tool_calls.length > 0) {
-          return {
-            content: message.content,
-            tool_call: message.tool_calls[0]
-          };
-        }
-
-        return message.content;
-
-      } catch (err) {
-        const ms = Date.now() - t0;
-        logStatus(`openrouter/${model.split(':')[0]}`, "❌ FAIL", i, ms, err.message);
-
-        if (err.message.includes("Rate limit") || err.message.includes("429") || err.message.includes("rate limit")) {
-          break;
-        }
-
-        if (i < retries) await new Promise(r => setTimeout(r, retryDelay));
+        throw new Error(errorData.error?.message || `HTTP ${res.status}`);
       }
+
+      const data = await res.json();
+      const message = data?.choices?.[0]?.message;
+
+      if (!message || !message.content) {
+        throw new Error("Empty response");
+      }
+
+      const ms = Date.now() - t0;
+      logStatus(`groq/${model}`, "✅ PASS", i, ms);
+
+      return message.content;
+
+    } catch (err) {
+      const ms = Date.now() - t0;
+      logStatus(`groq/${model}`, "❌ FAIL", i, ms, err.message);
+
+      if (i < retries) await new Promise(r => setTimeout(r, retryDelay * i));
     }
   }
 
-  throw new Error("❌ All free models failed or rate limited. Try again in a minute.");
+  throw new Error("❌ Groq failed all attempts. Check your API key or wait a minute.");
 }
 
 
@@ -2719,8 +2699,10 @@ Agar tere response mein "hu" (auxiliary verb for self-action) hai, toh galat hai
 
     } catch (err) {
       console.error("❌ !ask command error:", err);
-      if (err.message && err.message.includes("rate limited")) {
-        await msg.reply("sab models busy hain yaar... 1 min ruk ja 💀");
+      if (err.message && err.message.includes("Rate limited")) {
+        await msg.reply("groq quota khatam ho gaya yaar... 1 min ruk ja 💀");
+      } else if (err.message && err.message.includes("API key")) {
+        await msg.reply("api key galat hai yaar... check kar 💀");
       } else {
         await msg.reply("system lag gaya... thodi der baad try kar cutie.");
       }
